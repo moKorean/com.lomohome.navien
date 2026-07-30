@@ -33,26 +33,47 @@ class AironeDriver(driver.Driver):
         self.log("Navien AirOne driver init")
 
     async def on_pair(self, session) -> None:
-        # Held across the two pair steps: login proves the account, then
-        # list_devices reuses the same authenticated client.
+        # Held across the pair steps: a session is established once (by the saved
+        # credentials if present, or the login form otherwise) and list_devices reuses it.
         state = {"api": None, "home_seq": None}
+
+        async def _open_session(username: str, password: str):
+            """Log in and stash the client + home on `state`. Raises on failure."""
+            api = NavienApi(username=username, password=password, log=self.log)
+            await api.login()
+            homes = api.home_seqs()
+            if not homes:
+                raise Exception("계정에 등록된 집(home)이 없습니다.")
+            saved = await compat.setting_get(self.homey, SETTING_HOME_SEQ)
+            state["api"] = api
+            state["home_seq"] = int(saved) if saved else homes[0][0]
+            return homes
+
+        async def on_check_session(data=None) -> dict:
+            """Gate for the `start` view: try the saved account so device-add can skip
+            the login form when the app is already signed in."""
+            username = await compat.setting_get(self.homey, SETTING_USERNAME)
+            password = await compat.setting_get(self.homey, SETTING_PASSWORD)
+            if not username or not password:
+                return {"ready": False, "reason": "먼저 나비엔 계정으로 로그인하세요."}
+            try:
+                await _open_session(username, password)
+            except Exception as exc:
+                return {"ready": False, "reason": f"저장된 계정으로 로그인하지 못했습니다: {exc}"}
+            self.log("pair: reused saved session, skipping login")
+            return {"ready": True}
 
         async def on_login(data) -> bool:
             username = (data or {}).get("username", "").strip()
             password = (data or {}).get("password", "")
             if not username or not password:
                 raise Exception("아이디와 비밀번호를 입력하세요.")
-            api = NavienApi(username=username, password=password, log=self.log)
             try:
-                await api.login()
+                await _open_session(username, password)
             except NavienAuthError as exc:
                 raise Exception(str(exc))
-            homes = api.home_seqs()
-            if not homes:
-                raise Exception("계정에 등록된 집(home)이 없습니다.")
-            state["api"] = api
-            state["home_seq"] = homes[0][0]   # first home; multi-home picker is TODO
-            # Persist app-scoped so devices can re-authenticate on their own.
+            # Persist app-scoped so devices — and the next pairing's start gate — can
+            # re-authenticate without asking again.
             await compat.setting_set(self.homey, SETTING_USERNAME, username)
             await compat.setting_set(self.homey, SETTING_PASSWORD, password)
             await compat.setting_set(self.homey, SETTING_HOME_SEQ, str(state["home_seq"]))
@@ -84,5 +105,6 @@ class AironeDriver(driver.Driver):
             self.log(f"pair: found {len(devices)} AirOne device(s)")
             return devices
 
+        session.set_handler("check_session", on_check_session)
         session.set_handler("login", on_login)
         session.set_handler("list_devices", on_list_devices)

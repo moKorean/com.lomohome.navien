@@ -16,12 +16,12 @@ connects and using it gives an SNI mismatch. See docs/PORTING.md.
 
 import hashlib
 import hmac
-import ssl
 import time
 import urllib.parse
 import uuid
 
 from lib.const import AWS_REGION, AWS_SERVICE, IOT_ENDPOINT, IOT_PORT
+from lib.navien import tls
 
 
 def _sign(key: bytes, msg: str) -> bytes:
@@ -120,7 +120,7 @@ class NavienMqtt:
             client_id=self._client_id,
             transport="websockets",
         )
-        client.tls_set_context(ssl.create_default_context())
+        client.tls_set_context(tls.ssl_context())
         client.ws_set_options(path=build_signed_ws_path(creds))
         client.on_connect = self._on_connect
         client.on_message = self._on_message

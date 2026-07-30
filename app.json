@@ -7,7 +7,8 @@
   "runtime": "python",
   "pythonVersion": "3.14",
   "pythonPackages": [
-    "paho-mqtt>=2.0"
+    "paho-mqtt>=2.0",
+    "certifi>=2024.0.0"
   ],
   "platforms": [
     "local"
@@ -122,6 +123,9 @@
         "xlarge": "/drivers/airone/assets/images/xlarge.png"
       },
       "pair": [
+        {
+          "id": "start"
+        },
         {
           "id": "login_credentials",
           "template": "login_credentials",

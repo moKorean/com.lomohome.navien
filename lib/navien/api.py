@@ -31,6 +31,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from http.cookiejar import CookieJar
 
+from lib.navien import tls
 from lib.const import (
     AIRONE_TOPIC_FMT,
     API_URL,
@@ -257,7 +258,13 @@ class NavienApi:
         endpoint answers with HTML either way.
         """
         if not hasattr(self, "_opener"):
-            handlers = [urllib.request.HTTPCookieProcessor(CookieJar())]
+            # An HTTPSHandler bound to certifi's CA bundle — the runtime has no system
+            # CA store, so the default handler would fail every request with
+            # CERTIFICATE_VERIFY_FAILED.
+            handlers = [
+                urllib.request.HTTPCookieProcessor(CookieJar()),
+                urllib.request.HTTPSHandler(context=tls.ssl_context()),
+            ]
             if not allow_redirects:
                 handlers.append(_NoRedirect())
             self._opener = urllib.request.build_opener(*handlers)

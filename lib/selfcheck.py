@@ -11,7 +11,6 @@ should show up in the log, not stop the app from starting.
 
 import platform
 import socket
-import ssl
 import sys
 
 
@@ -33,8 +32,12 @@ def _paho():
 
 
 def _ssl_context():
-    ctx = ssl.create_default_context()
-    return f"default TLS context ok (TLS {ctx.minimum_version.name}+)"
+    from lib.navien import tls
+
+    cafile = tls.ca_file()
+    ctx = tls.ssl_context()
+    source = f"certifi ({cafile})" if cafile else "system default (no certifi!)"
+    return f"TLS context ok (TLS {ctx.minimum_version.name}+), CA: {source}"
 
 
 def _outbound_address():
