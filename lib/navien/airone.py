@@ -59,7 +59,7 @@ class AironeDevice:
     # --- construction ------------------------------------------------------
 
     @classmethod
-    def from_raw(cls, raw: dict, log=print) -> "AironeDevice | None":
+    def from_raw(cls, raw: dict, log=print) -> AironeDevice | None:
         """Build from one entry of `GET /devices`, or None if not a supported AirOne.
 
         Extraction is defensive: the exact envelope of the device list is only known
@@ -76,8 +76,14 @@ class AironeDevice:
         device_seq = _first(raw, "deviceSeq", "device_seq") or _first(props, "deviceSeq")
         device_id = str(_first(raw, "deviceId") or _first(props, "deviceId") or "")
         physical = str(_first(room, "deviceId") or device_id or "")
-        model_code = _first(room, "modelCode") or _first(props, "modelCode") or _first(raw, "modelCode") or 0
-        nickname = _first(props, "nickName", "nickname") or _first(raw, "nickName") or "Navien AirOne"
+        model_code = (
+            _first(room, "modelCode") or _first(props, "modelCode")
+            or _first(raw, "modelCode") or 0
+        )
+        nickname = (
+            _first(props, "nickName", "nickname") or _first(raw, "nickName")
+            or "Navien AirOne"
+        )
 
         if service_code is None and not room:
             return None  # not an AirOne at all
@@ -86,7 +92,8 @@ class AironeDevice:
         except (TypeError, ValueError):
             model_code = 0
         if model_code and model_code < AIRONE_V2_MIN_MODEL_CODE:
-            log(f"navien: skipping older-gen AirOne (modelCode {model_code} < {AIRONE_V2_MIN_MODEL_CODE})")
+            log(f"navien: skipping older-gen AirOne (modelCode {model_code} < "
+                f"{AIRONE_V2_MIN_MODEL_CODE})")
             return None
         if not device_seq or not physical:
             log(f"navien: AirOne entry missing deviceSeq/physicalId; skipping ({device_id!r})")
@@ -206,7 +213,7 @@ class AironeDevice:
         room["running"] = RUNNING_ON if on else RUNNING_OFF
         return {"roomController": room}
 
-    def desired_mode(self, mode: int, option: "int | None" = None) -> dict:
+    def desired_mode(self, mode: int, option: int | None = None) -> dict:
         """Change mode, carrying the current option/volume/humidity along.
 
         The device resets humidity to its minimum if a mode change omits it, so the

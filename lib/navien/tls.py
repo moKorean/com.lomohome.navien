@@ -14,7 +14,7 @@ have anyway.
 import ssl
 
 
-def ca_file() -> "str | None":
+def ca_file() -> str | None:
     try:
         import certifi
 

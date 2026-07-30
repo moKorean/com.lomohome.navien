@@ -1,4 +1,4 @@
-"""REST client for the Navien Smart cloud.
+r"""REST client for the Navien Smart cloud.
 
 Ported from navien_smart_ha's `api.py`. Two-step login (form login → secured
 sign-in) yields an access token, the two distinct sequence numbers, and the
@@ -31,7 +31,6 @@ import urllib.request
 from dataclasses import dataclass, field
 from http.cookiejar import CookieJar
 
-from lib.navien import tls
 from lib.const import (
     AIRONE_TOPIC_FMT,
     API_URL,
@@ -41,6 +40,7 @@ from lib.const import (
     LOGIN_URL,
     USER_AGENT,
 )
+from lib.navien import tls
 
 
 class NavienAuthError(Exception):
@@ -58,7 +58,7 @@ class AwsCredentials:
     session_token: str
 
     @classmethod
-    def from_auth_info(cls, auth: dict) -> "AwsCredentials | None":
+    def from_auth_info(cls, auth: dict) -> AwsCredentials | None:
         if not isinstance(auth, dict):
             return None
         key = auth.get("accessKeyId")
@@ -79,7 +79,7 @@ class NavienApi:
     account_seq: str = ""            # form login userSeq → sign-in accountSeq
     user_seq: str = ""               # sign-in userInfo.userSeq → REST query / clientId
     homes: list = field(default_factory=list)
-    aws: "AwsCredentials | None" = None
+    aws: AwsCredentials | None = None
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     # --- public API --------------------------------------------------------
@@ -223,7 +223,7 @@ class NavienApi:
         return message
 
     @staticmethod
-    def _extract_message_json(html: str) -> "dict | None":
+    def _extract_message_json(html: str) -> dict | None:
         m = re.search(r"var\s+message\s*=\s*(\{.*?\})\s*;", html, re.DOTALL)
         if not m:
             return None

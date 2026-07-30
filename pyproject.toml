@@ -16,6 +16,18 @@ dev = [
     "ruff>=0.6",
 ]
 
+# This is a Homey app, not a Python distribution — there is nothing to build or
+# install. Declaring an empty package stops setuptools from auto-discovering the
+# top-level app dirs (lib/, drivers/, assets/, …) and failing an editable install
+# with "Multiple top-level packages discovered in a flat-layout".
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []
+py-modules = []
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

@@ -32,6 +32,8 @@ from lib.navien.api import NavienApi, NavienAuthError
 # error in the pair view rather than an endless spinner.
 LOGIN_TIMEOUT_S = 25.0
 
+_SLOW_LOGIN = "로그인 응답이 지연됩니다. 네트워크를 확인하고 다시 시도하세요."
+
 
 class AironeDriver(driver.Driver):
 
@@ -89,9 +91,9 @@ class AironeDriver(driver.Driver):
             try:
                 await _open_session(username, password)
             except NavienAuthError as exc:
-                raise Exception(str(exc))
-            except asyncio.TimeoutError:
-                raise Exception("로그인 응답이 지연됩니다. 네트워크를 확인하고 다시 시도하세요.")
+                raise Exception(str(exc)) from exc
+            except TimeoutError:
+                raise Exception(_SLOW_LOGIN) from None
             # Persist app-scoped so devices — and the next pairing's start gate — can
             # re-authenticate without asking again.
             await compat.setting_set(self.homey, SETTING_USERNAME, username)
@@ -102,8 +104,8 @@ class AironeDriver(driver.Driver):
         async def on_list_devices(data=None) -> list:
             try:
                 await _ensure_session()
-            except asyncio.TimeoutError:
-                raise Exception("로그인 응답이 지연됩니다. 네트워크를 확인하고 다시 시도하세요.")
+            except TimeoutError:
+                raise Exception(_SLOW_LOGIN) from None
             raw_devices = await asyncio.wait_for(
                 state["api"].list_devices(state["home_seq"]), timeout=LOGIN_TIMEOUT_S
             )
