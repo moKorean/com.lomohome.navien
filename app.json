@@ -1,0 +1,444 @@
+{
+  "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
+  "id": "com.lomohome.navien",
+  "version": "0.1.0",
+  "compatibility": ">=13.0.0",
+  "sdk": 3,
+  "runtime": "python",
+  "pythonVersion": "3.14",
+  "pythonPackages": [
+    "paho-mqtt>=2.0"
+  ],
+  "platforms": [
+    "local"
+  ],
+  "brandColor": "#E2001A",
+  "name": {
+    "en": "Navien Smart Community",
+    "ko": "나비엔 스마트 커뮤니티"
+  },
+  "description": {
+    "en": "Control your Navien AirOne ventilation, dehumidifier and air purifier",
+    "ko": "나비엔 에어원 환기·제습·청정을 홈이에서 제어하세요"
+  },
+  "category": [
+    "climate"
+  ],
+  "tags": {
+    "en": [
+      "Navien",
+      "AirOne",
+      "ventilation",
+      "dehumidifier",
+      "air purifier",
+      "air quality",
+      "ERV"
+    ],
+    "ko": [
+      "나비엔",
+      "경동나비엔",
+      "에어원",
+      "환기",
+      "제습",
+      "공기청정",
+      "환기청정기",
+      "공기질"
+    ]
+  },
+  "permissions": [],
+  "api": {
+    "get_status": {
+      "method": "GET",
+      "path": "/status"
+    },
+    "save_credentials": {
+      "method": "POST",
+      "path": "/credentials"
+    },
+    "clear_credentials": {
+      "method": "POST",
+      "path": "/credentials-clear"
+    },
+    "set_language": {
+      "method": "POST",
+      "path": "/language"
+    }
+  },
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "author": {
+    "name": "Geunwon Mo",
+    "email": "mokorean@gmail.com"
+  },
+  "contributors": {
+    "developers": [
+      {
+        "name": "Eui Young Jung",
+        "email": ""
+      }
+    ]
+  },
+  "copyright": "Homey port © 2026 Geunwon Mo. Based on navien_smart_ha © 2026 Eui Young Jung (MIT).",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/moKorean/com.lomohome.navien/issues"
+  },
+  "source": "https://github.com/moKorean/com.lomohome.navien",
+  "drivers": [
+    {
+      "name": {
+        "en": "Navien AirOne",
+        "ko": "나비엔 에어원"
+      },
+      "class": "fan",
+      "capabilities": [
+        "onoff",
+        "navien_airone_mode",
+        "navien_airone_fan",
+        "navien_target_humidity",
+        "navien_running_state",
+        "measure_temperature",
+        "measure_humidity",
+        "measure_pm25",
+        "measure_co2",
+        "navien_pm1",
+        "navien_pm10",
+        "navien_air_grade",
+        "navien_filter_usage",
+        "navien_error_code"
+      ],
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "images": {
+        "small": "/drivers/airone/assets/images/small.png",
+        "large": "/drivers/airone/assets/images/large.png",
+        "xlarge": "/drivers/airone/assets/images/xlarge.png"
+      },
+      "pair": [
+        {
+          "id": "login_credentials",
+          "template": "login_credentials",
+          "options": {
+            "usernameLabel": {
+              "en": "Navien account ID",
+              "ko": "나비엔 스마트 아이디"
+            },
+            "passwordLabel": {
+              "en": "Password",
+              "ko": "비밀번호"
+            }
+          },
+          "navigation": {
+            "next": "list_devices"
+          }
+        },
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "airone"
+    }
+  ],
+  "capabilities": {
+    "navien_air_grade": {
+      "type": "enum",
+      "title": {
+        "en": "Air quality",
+        "ko": "종합 공기질"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/air.svg",
+      "values": [
+        {
+          "id": "0",
+          "title": {
+            "en": "Unknown",
+            "ko": "알 수 없음"
+          }
+        },
+        {
+          "id": "1",
+          "title": {
+            "en": "Good",
+            "ko": "좋음"
+          }
+        },
+        {
+          "id": "2",
+          "title": {
+            "en": "Moderate",
+            "ko": "보통"
+          }
+        },
+        {
+          "id": "3",
+          "title": {
+            "en": "Bad",
+            "ko": "나쁨"
+          }
+        },
+        {
+          "id": "4",
+          "title": {
+            "en": "Very bad",
+            "ko": "매우 나쁨"
+          }
+        }
+      ]
+    },
+    "navien_airone_fan": {
+      "type": "enum",
+      "title": {
+        "en": "Fan speed",
+        "ko": "풍량"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "picker",
+      "icon": "/assets/capabilities/fan.svg",
+      "values": [
+        {
+          "id": "1",
+          "title": {
+            "en": "Low",
+            "ko": "미풍"
+          }
+        },
+        {
+          "id": "2",
+          "title": {
+            "en": "Medium",
+            "ko": "약풍"
+          }
+        },
+        {
+          "id": "3",
+          "title": {
+            "en": "High",
+            "ko": "강풍"
+          }
+        },
+        {
+          "id": "4",
+          "title": {
+            "en": "Auto",
+            "ko": "자동"
+          }
+        }
+      ]
+    },
+    "navien_airone_mode": {
+      "type": "enum",
+      "title": {
+        "en": "Operating mode",
+        "ko": "운전 모드"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "picker",
+      "icon": "/assets/capabilities/mode.svg",
+      "values": [
+        {
+          "id": "4",
+          "title": {
+            "en": "Ventilate",
+            "ko": "환기"
+          }
+        },
+        {
+          "id": "5",
+          "title": {
+            "en": "Exhaust",
+            "ko": "배기"
+          }
+        },
+        {
+          "id": "6",
+          "title": {
+            "en": "Cooking",
+            "ko": "요리"
+          }
+        },
+        {
+          "id": "8",
+          "title": {
+            "en": "Purify",
+            "ko": "청정"
+          }
+        },
+        {
+          "id": "9",
+          "title": {
+            "en": "Dehumidify",
+            "ko": "제습"
+          }
+        },
+        {
+          "id": "10",
+          "title": {
+            "en": "Ventilate + Dehumidify",
+            "ko": "환기제습"
+          }
+        },
+        {
+          "id": "12",
+          "title": {
+            "en": "Auto",
+            "ko": "자동운전"
+          }
+        },
+        {
+          "id": "15",
+          "title": {
+            "en": "Ventilate (outdoor)",
+            "ko": "환기(외기)"
+          }
+        },
+        {
+          "id": "17",
+          "title": {
+            "en": "Bypass",
+            "ko": "바이패스"
+          }
+        },
+        {
+          "id": "18",
+          "title": {
+            "en": "Negative-pressure",
+            "ko": "음압환기"
+          }
+        }
+      ]
+    },
+    "navien_error_code": {
+      "type": "number",
+      "title": {
+        "en": "Error code",
+        "ko": "오류 코드"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/error.svg",
+      "decimals": 0
+    },
+    "navien_filter_usage": {
+      "type": "number",
+      "title": {
+        "en": "Filter usage",
+        "ko": "필터 사용률"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/filter.svg",
+      "decimals": 0,
+      "units": {
+        "en": "%",
+        "ko": "%"
+      }
+    },
+    "navien_pm1": {
+      "type": "number",
+      "title": {
+        "en": "PM1.0",
+        "ko": "극초미세먼지 (PM1.0)"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/dust.svg",
+      "decimals": 0,
+      "units": {
+        "en": "µg/m³",
+        "ko": "㎍/㎥"
+      }
+    },
+    "navien_pm10": {
+      "type": "number",
+      "title": {
+        "en": "PM10",
+        "ko": "미세먼지 (PM10)"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/dust.svg",
+      "decimals": 0,
+      "units": {
+        "en": "µg/m³",
+        "ko": "㎍/㎥"
+      }
+    },
+    "navien_running_state": {
+      "type": "enum",
+      "title": {
+        "en": "State",
+        "ko": "운전 상태"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/state.svg",
+      "values": [
+        {
+          "id": "1",
+          "title": {
+            "en": "Running",
+            "ko": "운전"
+          }
+        },
+        {
+          "id": "2",
+          "title": {
+            "en": "Stopped",
+            "ko": "정지"
+          }
+        },
+        {
+          "id": "3",
+          "title": {
+            "en": "Away",
+            "ko": "외출"
+          }
+        }
+      ]
+    },
+    "navien_target_humidity": {
+      "type": "number",
+      "title": {
+        "en": "Target humidity",
+        "ko": "목표 습도"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "slider",
+      "icon": "/assets/capabilities/humidity.svg",
+      "min": 40,
+      "max": 70,
+      "step": 5,
+      "decimals": 0,
+      "units": {
+        "en": "%",
+        "ko": "%"
+      }
+    }
+  }
+}
