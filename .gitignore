@@ -1,0 +1,27 @@
+.homeybuild/
+env.json
+.env
+*.log
+.DS_Store
+
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+uv.lock
+
+# Built per-architecture venvs. `homey app build` regenerates these from
+# app.json's `pythonPackages` using the official builder images, so they are
+# reproducible rather than source.
+/python_packages/*/
+
+# Never commit account or cloud credentials.
+*.pem
+*.key
+certs/

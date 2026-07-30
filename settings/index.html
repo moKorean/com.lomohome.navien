@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root { --red:#E2001A; --bg:#f2f2f5; --card:#fff; --text:#1b1b1f; --muted:#66666e;
+            --border:#e2e2e8; --ok:#1e8449; --err:#c0392b; }
+    * { box-sizing: border-box; }
+    html, body { background: var(--bg) !important; }
+    body { margin:0; color:var(--text); font-size:14px; line-height:1.5;
+           font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .wrap { max-width:520px; margin:0 auto; padding:16px 16px 32px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:16px; }
+    h2 { font-size:17px; margin:0 0 6px; }
+    p { margin:0 0 10px; color:var(--muted); }
+    label { display:block; font-weight:600; margin:12px 0 4px; font-size:13px; }
+    input { width:100%; padding:9px; font-size:15px; border:1px solid var(--border); border-radius:6px; }
+    button { margin-top:16px; padding:10px 18px; border:0; border-radius:6px; background:var(--red);
+             color:#fff; font-size:15px; cursor:pointer; }
+    button.ghost { background:#eeeef2; color:var(--text); margin-left:8px; }
+    button[disabled] { opacity:.55; cursor:default; }
+    .msg { margin-top:13px; font-size:13px; white-space:pre-wrap; }
+    .msg.ok { color:var(--ok); } .msg.err { color:var(--err); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2 data-i18n="title">Navien account</h2>
+      <p data-i18n="intro">Sign in with your Navien Smart app account. Credentials are stored on your Homey and used to reach the Navien cloud.</p>
+      <label data-i18n="id">Account ID</label>
+      <input id="username" type="text" autocomplete="username" spellcheck="false">
+      <label data-i18n="pw">Password</label>
+      <input id="password" type="password" autocomplete="current-password">
+      <div>
+        <button id="save" data-i18n="save">Sign in &amp; save</button>
+        <button id="clear" class="ghost" data-i18n="clear">Clear</button>
+      </div>
+      <div id="msg" class="msg"></div>
+    </div>
+  </div>
+
+  <script type="text/javascript" src="/homey.js" data-origin="settings"></script>
+  <script type="text/javascript">
+    var H = null;
+    var STR = {
+      en: { title:"Navien account",
+            intro:"Sign in with your Navien Smart app account. Credentials are stored on your Homey and used to reach the Navien cloud.",
+            id:"Account ID", pw:"Password", save:"Sign in & save", clear:"Clear",
+            saving:"Signing in…", saved:"Signed in. Found {0} home(s). You can now add AirOne devices.",
+            cleared:"Credentials cleared.", need:"Enter both an account ID and a password." },
+      ko: { title:"나비엔 계정",
+            intro:"나비엔 스마트 앱 계정으로 로그인하세요. 자격증명은 홈이에 저장되어 나비엔 클라우드 접속에 사용됩니다.",
+            id:"아이디", pw:"비밀번호", save:"로그인 & 저장", clear:"지우기",
+            saving:"로그인 중…", saved:"로그인되었습니다. 집 {0}개를 찾았습니다. 이제 에어원 기기를 추가할 수 있습니다.",
+            cleared:"자격증명을 지웠습니다.", need:"아이디와 비밀번호를 모두 입력하세요." }
+    };
+    var LANG = "en";
+    function t(k){ return (STR[LANG] && STR[LANG][k]) || STR.en[k] || k; }
+    function fmt(s, a){ return s.replace("{0}", a); }
+    function applyI18n(){
+      document.querySelectorAll("[data-i18n]").forEach(function(el){
+        el.textContent = t(el.getAttribute("data-i18n"));
+      });
+    }
+    function api(method, path, body){
+      return new Promise(function(resolve, reject){
+        H.api(method, path, body || {}, function(err, res){ err ? reject(err) : resolve(res); });
+      });
+    }
+    function msg(text, cls){ var m=document.getElementById("msg"); m.textContent=text; m.className="msg "+(cls||""); }
+
+    function onHomeyReady(Homey){
+      H = Homey;
+      try {
+        var l = H.getLanguage && H.getLanguage();
+        if (typeof l === "string" && STR[l.slice(0,2)]) LANG = l.slice(0,2);
+      } catch(e) {}
+      applyI18n();
+      api("POST", "/language", { language: LANG }).catch(function(){});
+      api("GET", "/status").then(function(s){
+        if (s && s.username) document.getElementById("username").value = s.username;
+      }).catch(function(){});
+
+      document.getElementById("save").addEventListener("click", function(){
+        var u = document.getElementById("username").value.trim();
+        var p = document.getElementById("password").value;
+        if (!u || !p) { msg(t("need"), "err"); return; }
+        this.disabled = true; msg(t("saving"));
+        var btn = this;
+        api("POST", "/credentials", { username:u, password:p }).then(function(res){
+          btn.disabled = false;
+          if (res && res.ok) msg(fmt(t("saved"), (res.homes||[]).length), "ok");
+          else msg((res && res.error) || "Error", "err");
+        }).catch(function(err){ btn.disabled=false; msg(String(err && err.message || err), "err"); });
+      });
+
+      document.getElementById("clear").addEventListener("click", function(){
+        api("POST", "/credentials-clear", {}).then(function(){
+          document.getElementById("username").value = "";
+          document.getElementById("password").value = "";
+          msg(t("cleared"), "ok");
+        }).catch(function(err){ msg(String(err && err.message || err), "err"); });
+      });
+
+      H.ready();
+    }
+  </script>
+</body>
+</html>

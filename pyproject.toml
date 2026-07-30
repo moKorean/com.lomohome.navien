@@ -1,0 +1,26 @@
+[project]
+name = "com-lomohome-navien"
+version = "0.1.0"
+description = "Homey port of the navien_smart_ha Home Assistant integration (Navien AirOne)"
+requires-python = ">=3.14"
+# The runtime source of truth for dependencies is app.json's `pythonPackages`.
+# This mirror exists for local development and tests.
+dependencies = [
+    "paho-mqtt>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

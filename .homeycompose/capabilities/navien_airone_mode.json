@@ -1,0 +1,20 @@
+{
+  "type": "enum",
+  "title": { "en": "Operating mode", "ko": "운전 모드" },
+  "getable": true,
+  "setable": true,
+  "uiComponent": "picker",
+  "icon": "/assets/capabilities/mode.svg",
+  "values": [
+    { "id": "4", "title": { "en": "Ventilate", "ko": "환기" } },
+    { "id": "5", "title": { "en": "Exhaust", "ko": "배기" } },
+    { "id": "6", "title": { "en": "Cooking", "ko": "요리" } },
+    { "id": "8", "title": { "en": "Purify", "ko": "청정" } },
+    { "id": "9", "title": { "en": "Dehumidify", "ko": "제습" } },
+    { "id": "10", "title": { "en": "Ventilate + Dehumidify", "ko": "환기제습" } },
+    { "id": "12", "title": { "en": "Auto", "ko": "자동운전" } },
+    { "id": "15", "title": { "en": "Ventilate (outdoor)", "ko": "환기(외기)" } },
+    { "id": "17", "title": { "en": "Bypass", "ko": "바이패스" } },
+    { "id": "18", "title": { "en": "Negative-pressure", "ko": "음압환기" } }
+  ]
+}

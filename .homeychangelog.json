@@ -1,0 +1,6 @@
+{
+  "0.1.0": {
+    "en": "First release. Adds Navien AirOne (ventilation/dehumidify/air-purify): power, operating mode, fan speed, target humidity, and air-quality sensors (PM, CO₂, temperature, humidity, filter usage).",
+    "ko": "첫 릴리스. 나비엔 에어원(환기·제습·청정) 지원: 전원, 운전 모드, 풍량, 목표 습도, 공기질 센서(미세먼지·CO₂·온습도·필터 사용률)."
+  }
+}

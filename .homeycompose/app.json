@@ -1,0 +1,89 @@
+{
+  "id": "com.lomohome.navien",
+  "version": "0.1.0",
+  "compatibility": ">=13.0.0",
+  "sdk": 3,
+  "runtime": "python",
+  "pythonVersion": "3.14",
+  "pythonPackages": [
+    "paho-mqtt>=2.0"
+  ],
+  "platforms": [
+    "local"
+  ],
+  "brandColor": "#E2001A",
+  "name": {
+    "en": "Navien Smart Community",
+    "ko": "나비엔 스마트 커뮤니티"
+  },
+  "description": {
+    "en": "Control your Navien AirOne ventilation, dehumidifier and air purifier",
+    "ko": "나비엔 에어원 환기·제습·청정을 홈이에서 제어하세요"
+  },
+  "category": [
+    "climate"
+  ],
+  "tags": {
+    "en": [
+      "Navien",
+      "AirOne",
+      "ventilation",
+      "dehumidifier",
+      "air purifier",
+      "air quality",
+      "ERV"
+    ],
+    "ko": [
+      "나비엔",
+      "경동나비엔",
+      "에어원",
+      "환기",
+      "제습",
+      "공기청정",
+      "환기청정기",
+      "공기질"
+    ]
+  },
+  "permissions": [],
+  "api": {
+    "get_status": {
+      "method": "GET",
+      "path": "/status"
+    },
+    "save_credentials": {
+      "method": "POST",
+      "path": "/credentials"
+    },
+    "clear_credentials": {
+      "method": "POST",
+      "path": "/credentials-clear"
+    },
+    "set_language": {
+      "method": "POST",
+      "path": "/language"
+    }
+  },
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "author": {
+    "name": "Geunwon Mo",
+    "email": "mokorean@gmail.com"
+  },
+  "contributors": {
+    "developers": [
+      {
+        "name": "Eui Young Jung",
+        "email": ""
+      }
+    ]
+  },
+  "copyright": "Homey port © 2026 Geunwon Mo. Based on navien_smart_ha © 2026 Eui Young Jung (MIT).",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/moKorean/com.lomohome.navien/issues"
+  },
+  "source": "https://github.com/moKorean/com.lomohome.navien"
+}

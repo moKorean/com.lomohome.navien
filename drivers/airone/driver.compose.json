@@ -1,0 +1,54 @@
+{
+  "name": {
+    "en": "Navien AirOne",
+    "ko": "나비엔 에어원"
+  },
+  "class": "fan",
+  "capabilities": [
+    "onoff",
+    "navien_airone_mode",
+    "navien_airone_fan",
+    "navien_target_humidity",
+    "navien_running_state",
+    "measure_temperature",
+    "measure_humidity",
+    "measure_pm25",
+    "measure_co2",
+    "navien_pm1",
+    "navien_pm10",
+    "navien_air_grade",
+    "navien_filter_usage",
+    "navien_error_code"
+  ],
+  "platforms": [
+    "local"
+  ],
+  "connectivity": [
+    "cloud"
+  ],
+  "images": {
+    "small": "/drivers/airone/assets/images/small.png",
+    "large": "/drivers/airone/assets/images/large.png",
+    "xlarge": "/drivers/airone/assets/images/xlarge.png"
+  },
+  "pair": [
+    {
+      "id": "login_credentials",
+      "template": "login_credentials",
+      "options": {
+        "usernameLabel": { "en": "Navien account ID", "ko": "나비엔 스마트 아이디" },
+        "passwordLabel": { "en": "Password", "ko": "비밀번호" }
+      },
+      "navigation": { "next": "list_devices" }
+    },
+    {
+      "id": "list_devices",
+      "template": "list_devices",
+      "navigation": { "next": "add_devices" }
+    },
+    {
+      "id": "add_devices",
+      "template": "add_devices"
+    }
+  ]
+}

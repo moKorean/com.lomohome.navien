@@ -1,0 +1,15 @@
+{
+  "type": "enum",
+  "title": { "en": "Air quality", "ko": "종합 공기질" },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/capabilities/air.svg",
+  "values": [
+    { "id": "0", "title": { "en": "Unknown", "ko": "알 수 없음" } },
+    { "id": "1", "title": { "en": "Good", "ko": "좋음" } },
+    { "id": "2", "title": { "en": "Moderate", "ko": "보통" } },
+    { "id": "3", "title": { "en": "Bad", "ko": "나쁨" } },
+    { "id": "4", "title": { "en": "Very bad", "ko": "매우 나쁨" } }
+  ]
+}
