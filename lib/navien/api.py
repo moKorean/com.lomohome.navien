@@ -271,10 +271,13 @@ class NavienApi:
         req = urllib.request.Request(url, data=body, method=method)
         for key, value in headers.items():
             req.add_header(key, value)
+        self.log(f"navien http: {method} {url}")
         try:
-            with self._opener.open(req, timeout=30) as resp:
+            with self._opener.open(req, timeout=15) as resp:
+                self.log(f"navien http: {method} {url} -> {resp.status}")
                 return resp.status, resp.read().decode("utf-8", "replace")
         except urllib.error.HTTPError as exc:
+            self.log(f"navien http: {method} {url} -> HTTPError {exc.code}")
             return exc.code, exc.read().decode("utf-8", "replace")
 
     async def _run(self, fn, *args):

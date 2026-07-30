@@ -30,18 +30,30 @@
     function onHomeyReady(Homey) {
       var msg = document.getElementById("msg");
       var btn = document.getElementById("login");
+      var settled = false;
 
       function toLogin(reason) {
+        if (settled) return;
+        settled = true;
         msg.textContent = reason || "나비엔 계정 로그인이 필요합니다.";
         btn.style.display = "inline-block";
         btn.onclick = function () { Homey.showView("login_credentials"); };
       }
+      function toList() {
+        if (settled) return;
+        settled = true;
+        Homey.showView("list_devices");
+      }
 
-      // Try the saved account. If it works, skip the login form entirely and go
-      // straight to the device list; otherwise fall back to the login view.
+      // Watchdog: never let this view hang. If the gate hasn't answered quickly,
+      // just offer the login form. check_session does no network, so this is only a
+      // safety net.
+      setTimeout(function () { toLogin("나비엔 계정 로그인이 필요합니다."); }, 6000);
+
+      // Ask whether an account is already saved; skip straight to the list if so.
       Promise.resolve(Homey.emit("check_session", {}))
         .then(function (res) {
-          if (res && res.ready) { Homey.showView("list_devices"); }
+          if (res && res.ready) { toList(); }
           else { toLogin(res && res.reason); }
         })
         .catch(function (err) { toLogin(String((err && err.message) || err)); });

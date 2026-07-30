@@ -10,6 +10,8 @@ repair them all at once. The per-device store keeps only the identifiers needed 
 address that unit over REST and MQTT.
 """
 
+import asyncio
+
 from homey import driver
 
 from lib import compat
@@ -26,6 +28,10 @@ from lib.const import (
 from lib.navien.airone import AironeDevice
 from lib.navien.api import NavienApi, NavienAuthError
 
+# Hard ceiling on any pairing network call, so a stalled request surfaces as an
+# error in the pair view rather than an endless spinner.
+LOGIN_TIMEOUT_S = 25.0
+
 
 class AironeDriver(driver.Driver):
 
@@ -38,30 +44,42 @@ class AironeDriver(driver.Driver):
         state = {"api": None, "home_seq": None}
 
         async def _open_session(username: str, password: str):
-            """Log in and stash the client + home on `state`. Raises on failure."""
+            """Log in and stash the client + home on `state`. Raises on failure.
+
+            Wrapped in a hard timeout so a stalled network call can't leave the pair
+            view spinning forever — it surfaces as an error the view can show instead.
+            """
             api = NavienApi(username=username, password=password, log=self.log)
-            await api.login()
+            self.log("pair: logging in to Navien cloud…")
+            await asyncio.wait_for(api.login(), timeout=LOGIN_TIMEOUT_S)
             homes = api.home_seqs()
             if not homes:
                 raise Exception("계정에 등록된 집(home)이 없습니다.")
             saved = await compat.setting_get(self.homey, SETTING_HOME_SEQ)
             state["api"] = api
             state["home_seq"] = int(saved) if saved else homes[0][0]
+            self.log(f"pair: login ok, home_seq={state['home_seq']}")
             return homes
 
-        async def on_check_session(data=None) -> dict:
-            """Gate for the `start` view: try the saved account so device-add can skip
-            the login form when the app is already signed in."""
+        async def _ensure_session():
+            """Make sure `state['api']` is live, opening it from saved creds if needed."""
+            if state["api"] is not None:
+                return
             username = await compat.setting_get(self.homey, SETTING_USERNAME)
             password = await compat.setting_get(self.homey, SETTING_PASSWORD)
             if not username or not password:
-                return {"ready": False, "reason": "먼저 나비엔 계정으로 로그인하세요."}
-            try:
-                await _open_session(username, password)
-            except Exception as exc:
-                return {"ready": False, "reason": f"저장된 계정으로 로그인하지 못했습니다: {exc}"}
-            self.log("pair: reused saved session, skipping login")
-            return {"ready": True}
+                raise Exception("먼저 나비엔 계정으로 로그인하세요.")
+            await _open_session(username, password)
+
+        async def on_check_session(data=None) -> dict:
+            """Gate for the `start` view. Deliberately does NO network — just reports
+            whether an account is saved, so device-add can skip the login form. The
+            actual (slow) login happens in list_devices, where a failure can be shown."""
+            username = await compat.setting_get(self.homey, SETTING_USERNAME)
+            password = await compat.setting_get(self.homey, SETTING_PASSWORD)
+            ready = bool(username and password)
+            self.log(f"pair: check_session ready={ready}")
+            return {"ready": ready, "reason": "" if ready else "먼저 나비엔 계정으로 로그인하세요."}
 
         async def on_login(data) -> bool:
             username = (data or {}).get("username", "").strip()
@@ -72,20 +90,23 @@ class AironeDriver(driver.Driver):
                 await _open_session(username, password)
             except NavienAuthError as exc:
                 raise Exception(str(exc))
+            except asyncio.TimeoutError:
+                raise Exception("로그인 응답이 지연됩니다. 네트워크를 확인하고 다시 시도하세요.")
             # Persist app-scoped so devices — and the next pairing's start gate — can
             # re-authenticate without asking again.
             await compat.setting_set(self.homey, SETTING_USERNAME, username)
             await compat.setting_set(self.homey, SETTING_PASSWORD, password)
             await compat.setting_set(self.homey, SETTING_HOME_SEQ, str(state["home_seq"]))
-            self.log(f"pair: login ok, home_seq={state['home_seq']}")
             return True
 
         async def on_list_devices(data=None) -> list:
-            api = state["api"]
-            if api is None:
-                raise Exception("먼저 로그인하세요.")
-            home_seq = state["home_seq"]
-            raw_devices = await api.list_devices(home_seq)
+            try:
+                await _ensure_session()
+            except asyncio.TimeoutError:
+                raise Exception("로그인 응답이 지연됩니다. 네트워크를 확인하고 다시 시도하세요.")
+            raw_devices = await asyncio.wait_for(
+                state["api"].list_devices(state["home_seq"]), timeout=LOGIN_TIMEOUT_S
+            )
             devices = []
             for raw in raw_devices:
                 unit = AironeDevice.from_raw(raw, log=self.log)
