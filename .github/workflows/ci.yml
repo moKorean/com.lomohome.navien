@@ -8,9 +8,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v9
+        with:
+          # No lockfile is committed (uv.lock is gitignored), so there is nothing
+          # to key a cache on; disabling it avoids the "cache never invalidates" warning.
+          enable-cache: false
       - name: Set up Python 3.14
         run: uv python install 3.14
       - name: Create venv and install
