@@ -11,6 +11,8 @@ import never takes the app down — the caller just sees the same verify error i
 have anyway.
 """
 
+from __future__ import annotations
+
 import ssl
 
 

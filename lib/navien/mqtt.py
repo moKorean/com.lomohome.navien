@@ -95,12 +95,15 @@ class NavienMqtt:
     on the asyncio loop.
     """
 
-    def __init__(self, *, loop, user_seq, home_seq, creds_provider, on_reported, log=print):
+    def __init__(self, *, loop, user_seq, home_seq, creds_provider, on_reported,
+                 prefixes=("airone",), parser=extract_airone_reported, log=print):
         self._loop = loop
         self._user_seq = user_seq
         self._home_seq = home_seq
         self._creds_provider = creds_provider
         self._on_reported = on_reported
+        self._prefixes = tuple(prefixes)
+        self._parser = parser
         self._log = log
         self._client = None
         self._client_id = ""
@@ -144,8 +147,8 @@ class NavienMqtt:
     # --- paho callbacks (paho thread) --------------------------------------
 
     def _topics(self) -> list:
-        # `#` because AirOne replies arrive one level deeper than the prefix.
-        return [f"{self._home_seq}/airone/#"]
+        # `#` because replies arrive one level deeper than the prefix.
+        return [f"{self._home_seq}/{prefix}/#" for prefix in self._prefixes]
 
     def _on_connect(self, client, _userdata, _flags, reason_code, _props=None):
         if getattr(reason_code, "is_failure", False):
@@ -165,7 +168,7 @@ class NavienMqtt:
             payload = json.loads(message.payload.decode("utf-8", "replace"))
         except Exception:
             return
-        parsed = extract_airone_reported(message.topic, payload)
+        parsed = self._parser(message.topic, payload)
         if parsed is None:
             return
         device_id, reported = parsed

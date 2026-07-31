@@ -21,6 +21,8 @@ WHY the odd bits:
     `\/` in the raw JSON, or the server drops the command.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import re
@@ -139,6 +141,29 @@ class NavienApi:
         body = {"serviceCode": 300, "payload": payload}
         raw = self._escape_topics(json.dumps(body, ensure_ascii=False),
                                   response_topic, topic)
+        return await self._authed(
+            "POST", f"/devices/{device_seq}/control?{self._q(home_seq)}", raw_body=raw
+        )
+
+    async def mate_control(self, *, device_seq, home_seq, device_id, model_code,
+                           service_code, desired) -> dict:
+        r"""POST a sleep-mat command, relayed to the device's AWS shadow.
+
+        `event.modelCode` (int) is attached to every command, and the shadow topic's
+        slashes must go out as `\/` in the raw JSON — built via a sentinel so only the
+        topic value is escaped, exactly as the app does.
+        """
+        topic = f"$aws/things/{device_id}/shadow/name/status/update"
+        body = {
+            "serviceCode": service_code,
+            "topic": "\x00TOPIC\x00",
+            "payload": {"state": {"desired": {
+                "event": {"modelCode": int(model_code)},
+                **desired,
+            }}},
+        }
+        raw = json.dumps(body, ensure_ascii=False).replace(
+            '"\\u0000TOPIC\\u0000"', json.dumps(topic).replace("/", "\\/"))
         return await self._authed(
             "POST", f"/devices/{device_seq}/control?{self._q(home_seq)}", raw_body=raw
         )

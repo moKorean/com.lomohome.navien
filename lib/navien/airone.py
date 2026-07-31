@@ -10,6 +10,8 @@ ones use inverted values and a different envelope. Unknown enum values are skipp
 not guessed. See docs/PORTING.md.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 from lib.const import (

@@ -156,6 +156,59 @@
         }
       ],
       "id": "airone"
+    },
+    {
+      "name": {
+        "en": "Navien Sleep Mat",
+        "ko": "나비엔 숙면매트"
+      },
+      "class": "heater",
+      "capabilities": [],
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "images": {
+        "small": "/drivers/mate/assets/images/small.png",
+        "large": "/drivers/mate/assets/images/large.png",
+        "xlarge": "/drivers/mate/assets/images/xlarge.png"
+      },
+      "pair": [
+        {
+          "id": "start"
+        },
+        {
+          "id": "login_credentials",
+          "template": "login_credentials",
+          "options": {
+            "usernameLabel": {
+              "en": "Navien account ID",
+              "ko": "나비엔 스마트 아이디"
+            },
+            "passwordLabel": {
+              "en": "Password",
+              "ko": "비밀번호"
+            }
+          },
+          "navigation": {
+            "next": "list_devices"
+          }
+        },
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "mate"
     }
   ],
   "capabilities": {
@@ -359,6 +412,36 @@
         "ko": "%"
       }
     },
+    "navien_heat_level": {
+      "type": "number",
+      "title": {
+        "en": "Heat level",
+        "ko": "난방 단계"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "slider",
+      "icon": "/assets/capabilities/level.svg",
+      "min": 0,
+      "max": 9,
+      "step": 1,
+      "decimals": 0,
+      "units": {
+        "en": "level",
+        "ko": "단계"
+      }
+    },
+    "navien_operation_mode": {
+      "type": "string",
+      "title": {
+        "en": "Operation",
+        "ko": "운전 상태"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/mode.svg"
+    },
     "navien_pm1": {
       "type": "number",
       "title": {
@@ -421,6 +504,33 @@
           "title": {
             "en": "Away",
             "ko": "외출"
+          }
+        }
+      ]
+    },
+    "navien_season": {
+      "type": "enum",
+      "title": {
+        "en": "Season",
+        "ko": "계절 모드"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "picker",
+      "icon": "/assets/capabilities/season.svg",
+      "values": [
+        {
+          "id": "0",
+          "title": {
+            "en": "Heating",
+            "ko": "난방"
+          }
+        },
+        {
+          "id": "2",
+          "title": {
+            "en": "Cooling",
+            "ko": "냉방"
           }
         }
       ]

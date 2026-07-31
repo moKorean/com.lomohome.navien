@@ -30,7 +30,8 @@ The Homey port itself is © 2026 Geunwon Mo.
 | Fan speed (low / medium / high / auto) | ported |
 | Target humidity (dehumidify modes) | ported |
 | Air quality — PM1/PM2.5/PM10, CO₂, temperature, humidity, filter usage | ported |
-| Sleep mats, boilers, wall pads | out of scope for now |
+| Sleep mats (숙면매트) — power, per-zone temperature (0.5 °C) / level (1.0L), single & double, four-season heat/cool, operation & error status, high-temp alarm | ported (hardware-verified upstream) |
+| Boilers, wall pads | out of scope for now |
 
 > **Verification status.** Like the upstream project, the AirOne control path is
 > reverse-engineered from the app and **not yet confirmed against a real appliance**.

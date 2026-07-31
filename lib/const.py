@@ -46,6 +46,46 @@ AIRONE_TOPIC_FMT = "cmd/rc/v2/{model_code}/{physical_device_id}/remote/{command}
 # envelope and inverted values.
 AIRONE_V2_MIN_MODEL_CODE = 1000
 
+# --- Sleep mat (숙면매트, serviceCode 200) ---------------------------------
+UNIT_LEVEL = "1.0L"          # heater.*.level.set — integer steps
+UNIT_CELSIUS = "0.5C"        # heater.*.temperature.set — 0.5 °C steps
+
+ZONE_SINGLE = "single"
+ZONE_LEFT = "left"
+ZONE_RIGHT = "right"
+CAPACITY_DOUBLE = 2
+
+LEVEL_STANDBY = 0            # heat_level 0 = "standby", not a temperature
+MAT_LABEL_STANDBY = {"en": "Standby", "ko": "운전 대기"}
+
+MODEL_TYPE_LABELS = {"em": "카본", "wm": "온수", "fm": "사계절"}
+
+# operationMode → name. NOT a closed set: unknown values render as "Unknown (n)".
+MAT_MODE_NAMES = {
+    0: {"en": "Off", "ko": "전원 꺼짐"},
+    1: {"en": "Heating", "ko": "난방"},
+    2: {"en": "Reserved", "ko": "예약"},
+    3: {"en": "Sleep", "ko": "수면모드"},
+    4: {"en": "Sterilize", "ko": "살균"},
+    5: {"en": "Draining", "ko": "배수"},
+    6: {"en": "Error", "ko": "오류"},
+    7: {"en": "Custom sleep", "ko": "개인맞춤 수면"},
+    8: {"en": "AI sleep", "ko": "AI 수면"},
+    99: {"en": "Switching to heat", "ko": "난방 전환"},
+    129: {"en": "Bed drying", "ko": "침대 건조"},
+    130: {"en": "Hyper", "ko": "하이퍼"},
+}
+# operationMode values that count as "on" (running). 6=ERROR and 0=OFF excluded.
+MAT_MODES_ON = {1, 2, 3, 4, 7, 8, 99, 129, 130}
+
+# season (four-season mats): the value the user picks in the app.
+SEASON_WINTER = 0            # heating
+SEASON_SUMMER = 2            # cooling
+MAT_SEASON_NAMES = {
+    SEASON_WINTER: {"en": "Heating", "ko": "난방"},
+    SEASON_SUMMER: {"en": "Cooling", "ko": "냉방"},
+}
+
 # --- App-scoped settings (credentials live once, not per device) -----------
 SETTING_USERNAME = "navien_username"
 SETTING_PASSWORD = "navien_password"

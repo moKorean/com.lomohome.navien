@@ -1,0 +1,37 @@
+{
+  "name": {
+    "en": "Navien Sleep Mat",
+    "ko": "나비엔 숙면매트"
+  },
+  "class": "heater",
+  "capabilities": [],
+  "platforms": [
+    "local"
+  ],
+  "connectivity": [
+    "cloud"
+  ],
+  "images": {
+    "small": "/drivers/mate/assets/images/small.png",
+    "large": "/drivers/mate/assets/images/large.png",
+    "xlarge": "/drivers/mate/assets/images/xlarge.png"
+  },
+  "pair": [
+    { "id": "start" },
+    {
+      "id": "login_credentials",
+      "template": "login_credentials",
+      "options": {
+        "usernameLabel": { "en": "Navien account ID", "ko": "나비엔 스마트 아이디" },
+        "passwordLabel": { "en": "Password", "ko": "비밀번호" }
+      },
+      "navigation": { "next": "list_devices" }
+    },
+    {
+      "id": "list_devices",
+      "template": "list_devices",
+      "navigation": { "next": "add_devices" }
+    },
+    { "id": "add_devices", "template": "add_devices" }
+  ]
+}
