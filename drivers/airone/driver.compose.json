@@ -11,6 +11,7 @@
     "navien_target_humidity",
     "navien_running_state",
     "navien_airone_status",
+    "navien_air_grade",
     "measure_temperature",
     "measure_humidity",
     "measure_co2",
@@ -21,7 +22,6 @@
     "navien_tvoc_grade",
     "navien_radon",
     "navien_radon_grade",
-    "navien_air_grade",
     "navien_filter_usage",
     "navien_error_code",
     "alarm_generic"
