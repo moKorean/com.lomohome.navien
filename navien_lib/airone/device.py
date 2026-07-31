@@ -307,8 +307,10 @@ class AironeDevice_(device.Device):
         await self._optimistic(desired)
 
     async def _on_set_humidity(self, value, opts=None):
+        # Raising surfaces the message as a toast in the app and reverts the slider.
+        if self._unit.option in (OPTION_TURBO, OPTION_SAVER):
+            raise Exception("터보·절전에서는 습도가 자동이라 조절할 수 없습니다.")
         if not self._humidity_allowed():
-            # Raising surfaces the message as a toast in the app and reverts the slider.
             raise Exception(
                 f"{self._mode_label()} 모드에서는 희망습도를 조절할 수 없습니다. "
                 f"제습 모드에서만 조절할 수 있습니다."
