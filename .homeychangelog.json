@@ -22,5 +22,9 @@
   "0.5.3": {
     "en": "All devices on an account now share one login instead of each holding their own, which was making them bounce each other off the single allowed session and stop updating. A login that fails now retries with backoff instead of giving up.",
     "ko": "한 계정의 모든 기기가 각자 로그인하지 않고 로그인 하나를 공유합니다. 이전에는 계정당 허용된 세션 하나를 서로 밀어내며 정보가 안 올라오던 문제가 있었습니다. 로그인 실패 시 포기하지 않고 점점 간격을 늘려 재시도합니다."
+  },
+  "0.5.4": {
+    "en": "Fixes the AirOne Flow cards (set/check operating mode, fan speed, power, humidity), which errored out when triggered from a Flow.",
+    "ko": "플로우에서 실행하면 오류가 나던 에어원 플로우 카드(운전 모드·풍량·전원·희망습도 설정/조건)를 고쳤습니다."
   }
 }

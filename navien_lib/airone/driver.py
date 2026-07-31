@@ -31,19 +31,21 @@ class AironeDriver(driver.Driver):
         resolves to the AironeDevice instance the Flow targets. Failures here must not
         abort driver init, so the whole block is guarded.
         """
+        # Run listeners take (args, state) but Homey also passes extra keywords such as
+        # `manual`, so every handler must accept **kwargs or the card errors out.
         try:
             self._bind("condition", "airone_mode_is",
-                       lambda a, s: a["device"].flow_mode_id() == a["mode"])
+                       lambda a, s=None, **_: a["device"].flow_mode_id() == a["mode"])
             self._bind("condition", "airone_fan_is",
-                       lambda a, s: a["device"].flow_fan_id() == a["fan"])
+                       lambda a, s=None, **_: a["device"].flow_fan_id() == a["fan"])
             self._bind("action", "airone_set_mode",
-                       lambda a, s: a["device"].flow_set_mode(a["mode"]))
+                       lambda a, s=None, **_: a["device"].flow_set_mode(a["mode"]))
             self._bind("action", "airone_set_fan",
-                       lambda a, s: a["device"].flow_set_fan(a["fan"]))
+                       lambda a, s=None, **_: a["device"].flow_set_fan(a["fan"]))
             self._bind("action", "airone_set_power",
-                       lambda a, s: a["device"].flow_set_power(a["power"] == "on"))
+                       lambda a, s=None, **_: a["device"].flow_set_power(a["power"] == "on"))
             self._bind("action", "airone_set_humidity",
-                       lambda a, s: a["device"].flow_set_humidity(int(a["humidity"])))
+                       lambda a, s=None, **_: a["device"].flow_set_humidity(int(a["humidity"])))
         except Exception as exc:
             self.log(f"flow card registration failed: {exc}")
 
