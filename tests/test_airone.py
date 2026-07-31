@@ -104,6 +104,27 @@ def test_humidity_range_from_server_metadata():
     assert airone.AironeDevice.from_raw(_sample_raw()).humidity_range() == (40, 70)
 
 
+def test_airone_mode_metadata():
+    modes = [
+        {"name": 8, "option": 1, "supportedAirVolumes": [1, 2, 3, 4]},
+        {"name": 9, "option": 1, "supportedAirVolumes": [4],
+         "additionalData": [{"type": 1, "min": 40, "max": 70}]},
+        {"name": 9, "option": 4},          # sleep on dehumidify
+        {"name": 12, "option": 2},         # auto turbo
+    ]
+    raw = {
+        "serviceCode": 300, "deviceSeq": 9, "deviceId": "A",
+        "Properties": {"modelCode": 1300, "data": {"did": {"reported": {
+            "roomController": {"deviceId": "RC", "mode": modes}}}}},
+    }
+    u = airone.AironeDevice.from_raw(raw)
+    assert u is not None
+    assert u.available_modes() == [8, 9, 12]
+    assert u.available_options() == [1, 4, 2]
+    assert u.available_air_volumes() == [1, 2, 3, 4]
+    assert u.humidity_range() == (40, 70)
+
+
 def test_topic_slash_escaping():
     body = ('{"requestTopic":"cmd/rc/v2/1/RC/remote/power",'
             '"responseTopic":"cmd/rc/v2/1/RC/remote/power/res"}')

@@ -15,11 +15,14 @@ from homey import device
 
 from lib import compat
 from lib.const import (
+    AIR_VOLUME_NAMES,
     AIRONE_CMD_CHANGE_MODE,
     AIRONE_CMD_POWER,
     AIRONE_CMD_STATUS,
     AIRONE_READBACK_DELAY_S,
     HUMIDITY_STEP,
+    MODE_NAMES,
+    OPTION_NAMES,
     POLL_INTERVAL_S,
     SETTING_HOME_SEQ,
     SETTING_PASSWORD,
@@ -86,6 +89,7 @@ class AironeDevice_(device.Device):
             if capability in self.get_capabilities():
                 self.register_capability_listener(capability, listener)
         self._humidity_range = None
+        self._enum_cache: dict = {}
 
         self.log(f"{self.get_name()} init (seq={self._device_seq}, phys={self._physical_id})")
         self._poll_task = asyncio.create_task(self._run())
@@ -174,8 +178,9 @@ class AironeDevice_(device.Device):
             if unit and str(unit.device_id) == self._device_id:
                 # `unit.reported` still carries the server's mode metadata (a list),
                 # which the MQTT state later overwrites with the current mode (an int),
-                # so read the humidity range here before merging.
+                # so read the metadata-derived options here before merging.
                 await self._sync_humidity_range(unit.humidity_range())
+                await self._sync_enum_options(unit)
                 self._unit.apply_reported(unit.reported)
                 break
 
@@ -228,6 +233,30 @@ class AironeDevice_(device.Device):
     async def _on_set_option(self, value, opts=None):
         await self._airone(AIRONE_CMD_CHANGE_MODE, desired=self._unit.desired_option(int(value)))
         self._schedule_readback()
+
+    async def _sync_enum_options(self, unit) -> None:
+        """Narrow the mode/fan/option pickers to what the server says the unit supports.
+
+        Values come from `roomController.mode` metadata (present only in the device
+        list). If the runtime doesn't accept a values override the static full list
+        stays, which is a fine fallback.
+        """
+        plan = (
+            ("navien_airone_mode", unit.available_modes(), MODE_NAMES),
+            ("navien_airone_fan", unit.available_air_volumes(), AIR_VOLUME_NAMES),
+            ("navien_airone_option", unit.available_options(), OPTION_NAMES),
+        )
+        for cap, ids, names in plan:
+            if not ids or cap not in self.get_capabilities():
+                continue
+            if self._enum_cache.get(cap) == ids:
+                continue
+            self._enum_cache[cap] = ids
+            values = [{"id": str(i), "title": names.get(i, {"en": str(i)})} for i in ids]
+            try:
+                await self.set_capability_options(cap, {"values": values})
+            except Exception as exc:
+                self.log(f"narrow {cap} failed: {exc}")
 
     async def _sync_humidity_range(self, bounds) -> None:
         """Set the target-humidity slider min/max from the server metadata (once)."""

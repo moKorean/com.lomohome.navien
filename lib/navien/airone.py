@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from lib.const import (
+    AIR_VOLUME_NAMES,
     AIRONE_SENSOR_ALIASES,
     AIRONE_V2_MIN_MODEL_CODE,
     HUMIDITY_MAX_FALLBACK,
@@ -47,6 +48,57 @@ def _first(d: dict, *keys, default=None):
         if isinstance(d, dict) and d.get(k) is not None:
             return d[k]
     return default
+
+
+def _as_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+@dataclass
+class AironeMode:
+    """One entry of the server's `roomController.mode` capability metadata.
+
+    This is the source of which modes / options / fan speeds a given unit actually
+    supports. It is only present in the device-list response; the MQTT state later
+    replaces `roomController.mode` with the current mode (an int), so it must be read
+    before merging live state.
+    """
+
+    mode: int
+    option: int
+    air_volume: int | None
+    supported_air_volumes: tuple
+    humidity_min: int | None
+    humidity_max: int | None
+
+    @classmethod
+    def parse(cls, raw) -> AironeMode | None:
+        if not isinstance(raw, dict):
+            return None
+        mode = _as_int(raw.get("name"))
+        if mode is None:
+            return None
+        option = _as_int(raw.get("option"))
+        option = OPTION_NONE if option is None else option
+        air_volume = _as_int(raw.get("airVolume"))
+        if air_volume not in AIR_VOLUME_NAMES:
+            air_volume = None
+        supported = []
+        for v in raw.get("supportedAirVolumes") or []:
+            iv = _as_int(v)
+            if iv in AIR_VOLUME_NAMES and iv not in supported:
+                supported.append(iv)
+        hmin = hmax = None
+        extra = raw.get("additionalData") or []
+        if isinstance(extra, dict):
+            extra = [extra]
+        for ad in extra:
+            if isinstance(ad, dict) and ad.get("type") == HUMIDITY_TYPE:
+                hmin, hmax = ad.get("min"), ad.get("max")
+        return cls(mode, option, air_volume, tuple(supported), hmin, hmax)
 
 
 @dataclass
@@ -265,6 +317,39 @@ class AironeDevice:
         return {"roomController": room}
 
     # --- server-provided metadata -----------------------------------------
+
+    @property
+    def modes(self) -> tuple:
+        """The parsed `roomController.mode` capability list (device-list only)."""
+        raw_modes = self._room.get("mode")
+        if not isinstance(raw_modes, list):
+            return ()
+        return tuple(m for m in (AironeMode.parse(md) for md in raw_modes) if m)
+
+    def available_modes(self) -> list:
+        """Distinct operating modes the server says this unit supports, in order."""
+        out = []
+        for m in self.modes:
+            if m.mode not in out:
+                out.append(m.mode)
+        return out
+
+    def available_options(self) -> list:
+        out = []
+        for m in self.modes:
+            if m.option not in out:
+                out.append(m.option)
+        return out
+
+    def available_air_volumes(self) -> list:
+        out = []
+        for m in self.modes:
+            for v in m.supported_air_volumes:
+                if v not in out:
+                    out.append(v)
+            if m.air_volume is not None and m.air_volume not in out:
+                out.append(m.air_volume)
+        return sorted(out)
 
     def humidity_range(self) -> tuple:
         """(min, max) target humidity from the server's mode metadata.
