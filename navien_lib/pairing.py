@@ -89,7 +89,15 @@ def install(driver, session, build_devices) -> None:
         return await _login_handler(flow, data)
 
     async def on_list_homes(data=None) -> list:
-        await flow.ensure()
+        # Bounded so the choose-home view never spins forever: a raised handler can leave
+        # the webview's emit promise pending, so on any failure return [] instead — the
+        # view then advances to list_devices, which surfaces errors through its template.
+        try:
+            await asyncio.wait_for(flow.ensure(), timeout=LOGIN_TIMEOUT_S)
+        except Exception as exc:
+            driver.log(f"pair: list_homes ensure failed: {exc}")
+            return []
+        driver.log(f"pair: list_homes -> {len(flow.homes)} home(s)")
         return [{"seq": seq, "name": name} for seq, name in flow.homes]
 
     async def on_select_home(data=None) -> bool:

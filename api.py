@@ -15,6 +15,8 @@ from navien_lib import compat
 from navien_lib.const import (
     API_URL,
     IOT_ENDPOINT,
+    SERVICE_AIRONE,
+    SERVICE_MATE,
     SETTING_HOME_SEQ,
     SETTING_PASSWORD,
     SETTING_UI_LANGUAGE,
@@ -75,7 +77,33 @@ async def save_credentials(homey, **kwargs) -> dict:
     await compat.setting_set(homey, SETTING_USERNAME, username)
     await compat.setting_set(homey, SETTING_PASSWORD, password)
     await compat.setting_set(homey, SETTING_HOME_SEQ, str(homes[0][0]))
-    return {"ok": True, "homes": [{"seq": s, "name": n} for s, n in homes]}
+    devices = await _detect_devices(api, homes)
+    return {
+        "ok": True,
+        "homes": [{"seq": s, "name": n} for s, n in homes],
+        "devices": devices,
+    }
+
+
+async def _detect_devices(api, homes) -> dict:
+    """Count the appliances actually visible on the account, by product, so the settings
+    page can report what was really found instead of just the home count."""
+    counts = {"airone": 0, "mate": 0, "other": 0, "total": 0}
+    for seq, _name in homes:
+        try:
+            raw_devices = await api.list_devices(seq)
+        except Exception:
+            continue
+        for raw in raw_devices or []:
+            service = raw.get("serviceCode") or (raw.get("Properties") or {}).get("serviceCode")
+            counts["total"] += 1
+            if service == SERVICE_AIRONE:
+                counts["airone"] += 1
+            elif service == SERVICE_MATE:
+                counts["mate"] += 1
+            else:
+                counts["other"] += 1
+    return counts
 
 
 async def clear_credentials(homey, **kwargs) -> dict:
@@ -117,8 +145,10 @@ async def check_connection(homey, **kwargs) -> dict:
     except Exception as exc:
         return {"ok": False, "configured": True, "error": f"연결에 실패했습니다: {exc}"}
     homes = api.home_seqs()
+    devices = await _detect_devices(api, homes)
     return {"ok": True, "configured": True,
-            "homes": [{"seq": s, "name": n} for s, n in homes]}
+            "homes": [{"seq": s, "name": n} for s, n in homes],
+            "devices": devices}
 
 
 async def set_language(homey, **kwargs) -> dict:

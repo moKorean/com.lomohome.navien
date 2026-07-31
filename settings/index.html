@@ -54,21 +54,30 @@
       en: { title:"Navien account",
             intro:"Sign in with your Navien Smart app account. Credentials are stored on your Homey and used to reach the Navien cloud.",
             id:"Account ID", pw:"Password", save:"Sign in & save", clear:"Clear", test:"Test connection",
-            saving:"Signing in…", saved:"Signed in. Found {0} home(s). You can now add AirOne devices.",
+            saving:"Signing in…", saved:"Signed in.",
+            foundAirone:" Found {0} AirOne unit(s) — add them from the device pairing screen.",
+            foundNone:" No AirOne found on the account (you may only have mats/monitors).",
             cleared:"Credentials cleared.", need:"Enter both an account ID and a password.",
             statusSaved:"✓ Signed in · credentials are stored on this Homey.",
-            testing:"Checking the connection…", testOk:"✓ Connection OK · {0} home(s)." },
+            testing:"Checking the connection…", testOk:"✓ Connection OK." },
       ko: { title:"나비엔 계정",
             intro:"나비엔 스마트 앱 계정으로 로그인하세요. 자격증명은 Homey 앱에 저장되어 나비엔 클라우드 접속에 사용됩니다.",
             id:"아이디", pw:"비밀번호", save:"로그인 & 저장", clear:"지우기", test:"연결 테스트",
-            saving:"로그인 중…", saved:"로그인되었습니다. 집 {0}개를 찾았습니다. 이제 에어원 기기를 추가할 수 있습니다.",
+            saving:"로그인 중…", saved:"로그인되었습니다.",
+            foundAirone:" 에어원 {0}대를 찾았습니다 — 기기 추가 화면에서 등록하세요.",
+            foundNone:" 계정에서 에어원을 찾지 못했습니다 (매트/모니터만 있을 수 있어요).",
             cleared:"자격증명을 지웠습니다.", need:"아이디와 비밀번호를 모두 입력하세요.",
             statusSaved:"✓ 로그인됨 · 자격증명이 Homey 앱에 저장되어 있습니다.",
-            testing:"연결 확인 중…", testOk:"✓ 연결 정상 · 집 {0}개" }
+            testing:"연결 확인 중…", testOk:"✓ 연결 정상." }
     };
     var LANG = "ko";   // default Korean; switched to en below if the Homey is English
     function t(k){ return (STR[LANG] && STR[LANG][k]) || STR.en[k] || k; }
     function fmt(s, a){ return s.replace("{0}", a); }
+    function deviceNote(res){
+      var d = (res && res.devices) || {};
+      var n = d.airone || 0;
+      return n > 0 ? fmt(t("foundAirone"), n) : t("foundNone");
+    }
     function applyI18n(){
       document.querySelectorAll("[data-i18n]").forEach(function(el){
         el.textContent = t(el.getAttribute("data-i18n"));
@@ -107,7 +116,7 @@
         var btn = this;
         api("POST", "/credentials", { username:u, password:p }).then(function(res){
           btn.disabled = false;
-          if (res && res.ok) { msg(fmt(t("saved"), (res.homes||[]).length), "ok"); banner(t("statusSaved"), "ok"); }
+          if (res && res.ok) { msg(t("saved") + deviceNote(res), "ok"); banner(t("statusSaved"), "ok"); }
           else msg((res && res.error) || "Error", "err");
         }).catch(function(err){ btn.disabled=false; msg(String(err && err.message || err), "err"); });
       });
@@ -116,7 +125,7 @@
         var btn = this; btn.disabled = true; msg(""); banner(t("testing"), "ok");
         api("GET", "/check-connection", {}).then(function(res){
           btn.disabled = false;
-          if (res && res.ok) banner(fmt(t("testOk"), (res.homes||[]).length), "ok");
+          if (res && res.ok) banner(t("testOk") + deviceNote(res), "ok");
           else banner((res && res.error) || "Error", "err");
         }).catch(function(err){ btn.disabled=false; banner(String(err && err.message || err), "err"); });
       });

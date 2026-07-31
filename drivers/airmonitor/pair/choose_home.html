@@ -38,13 +38,17 @@
   function flow() {
     var msg = document.getElementById("msg");
     var box = document.getElementById("homes");
+    var settled = false;
+    function advance() { if (settled) return; settled = true; H.showView("list_devices"); }
+    // The account almost always has one home, already saved at login, so if home lookup
+    // stalls just move on to the device list rather than spinning forever.
+    var fallback = setTimeout(advance, 12000);
     Promise.resolve(H.emit("list_homes", {}))
       .then(function (homes) {
-        if (!homes || homes.length === 0) { H.showView("list_devices"); return; }
-        if (homes.length === 1) {
-          H.emit("select_home", { seq: homes[0].seq }).then(function () { H.showView("list_devices"); });
-          return;
-        }
+        if (settled) return;
+        if (!homes || homes.length <= 1) { clearTimeout(fallback); advance(); return; }
+        clearTimeout(fallback);
+        settled = true;
         msg.style.display = "none";
         homes.forEach(function (h) {
           var b = document.createElement("button");
@@ -56,7 +60,7 @@
           box.appendChild(b);
         });
       })
-      .catch(function (err) { msg.textContent = String((err && err.message) || err); });
+      .catch(function () { clearTimeout(fallback); advance(); });
   }
 
   function onHomeyReady(homeyObj) { run(homeyObj); }
