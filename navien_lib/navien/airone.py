@@ -133,9 +133,11 @@ class AironeDevice:
         device_seq = _first(raw, "deviceSeq", "device_seq") or _first(props, "deviceSeq")
         device_id = str(_first(raw, "deviceId") or _first(props, "deviceId") or "")
         physical = str(_first(room, "deviceId") or device_id or "")
+        # The control topic uses the top-level device modelCode (matches the app);
+        # roomController.modelCode can differ and would address the wrong device.
         model_code = (
-            _first(room, "modelCode") or _first(props, "modelCode")
-            or _first(raw, "modelCode") or 0
+            _first(raw, "modelCode") or _first(props, "modelCode")
+            or _first(room, "modelCode") or 0
         )
         nick = _first(props, "nickName", "nickname") or _first(raw, "nickName")
         # nickName can be a dict like {"mainItem": "제습환기"}; take the label, not the dict.

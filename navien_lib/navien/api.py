@@ -132,6 +132,7 @@ class NavienApi:
             model_code=model_code, physical_device_id=physical_device_id, command=command
         )
         response_topic = f"{topic}/res"
+        self.log(f"navien airone control topic: {topic}")
         payload = {
             "clientId": client_id,                     # so the server routes the reply back
             "sessionId": str(int(time.time() * 1000)),

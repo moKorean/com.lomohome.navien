@@ -179,6 +179,10 @@ class AironeDevice_(device.Device):
         for raw in await self._api.list_devices(self._home_seq):
             unit = AironeDevice.from_raw(raw, log=self.log)
             if unit and str(unit.device_id) == self._device_id:
+                # Refresh the model code (control-topic addressing) from the live list,
+                # so a device paired before the model-code fix corrects itself.
+                if unit.model_code:
+                    self._model_code = unit.model_code
                 # `unit.reported` still carries the server's mode metadata (a list),
                 # which the MQTT state later overwrites with the current mode (an int),
                 # so read the metadata-derived options here before merging.
