@@ -6,5 +6,9 @@
   "0.2.0": {
     "en": "Automation cards for operating mode, fan speed, power and target humidity. Full air-quality sensors (PM1.0/2.5/10, CO₂, TVOC, radon, overall score) with good/bad grade labels for TVOC and radon, all graphable. Humidity control with guidance when a mode doesn't support it. AirMonitor as its own device. Real product images and icons, and account sign-in from the app settings.",
     "ko": "운전 모드·풍량·전원·목표 습도 자동화 카드 추가. 공기질 센서 전종(극초미세·초미세·미세먼지·CO₂·TVOC·라돈·종합 점수)과 TVOC·라돈 좋음/나쁨 등급 표시, 그래프 지원. 지원하지 않는 모드에서는 안내 문구와 함께 습도 조절 처리. 에어모니터 별도 기기 지원. 실제 제품 이미지·아이콘, 앱 설정에서 계정 로그인."
+  },
+  "0.5.0": {
+    "en": "Controls now hold the value you just set while the appliance catches up (~3 s), so mode and humidity no longer snap back. Desired humidity is adjustable in Dehumidify mode, and fan speed in Ventilate/Dehumidify/Purify/Bypass or the Sleep option; other modes explain why and the setting shows in the status sensor. Clearer settings screen with the Navien logo.",
+    "ko": "명령을 보내면 기기가 반영하는 ~3초 동안 설정값을 유지해, 운전 모드·희망 습도가 다시 되돌아가지 않습니다. 희망 습도는 제습 모드에서, 풍량은 환기·제습·청정·바이패스 또는 숙면 옵션에서 조절할 수 있고, 그 외 모드에서는 이유를 안내하며 현재 설정을 상태 센서에 표시합니다. 나비엔 로고를 넣어 설정 화면을 정리했습니다."
   }
 }

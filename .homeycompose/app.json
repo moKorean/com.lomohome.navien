@@ -1,6 +1,6 @@
 {
   "id": "com.lomohome.navien",
-  "version": "0.2.0",
+  "version": "0.5.0",
   "compatibility": ">=13.0.0",
   "sdk": 3,
   "runtime": "python",
