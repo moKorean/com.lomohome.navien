@@ -82,6 +82,13 @@ def test_mqtt_extract_and_parse():
     )["pm25"]["value"] == 12
     # A bare ack with no known section is ignored.
     assert mqtt.extract_airone_reported("t", {"reported": {"foo": 1}}) is None
+    # The real envelope nests reported under "payload".
+    nested = mqtt.extract_airone_reported(
+        "361954/airone/68FE",
+        {"topic": "dt/rc/v2/1901/68FE/status",
+         "payload": {"reported": {"roomController": {"running": 1, "mode": 9}}},
+         "serviceCode": 300})
+    assert nested[0] == "68FE" and nested[1]["roomController"]["mode"] == 9
 
 
 def test_sigv4_path_shape():

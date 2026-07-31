@@ -74,11 +74,15 @@ def build_signed_ws_path(creds, host: str = IOT_ENDPOINT,
 def extract_airone_reported(topic: str, payload: dict):
     """`(device_id, reported)` from an AirOne message, or None if it isn't one.
 
-    AirOne messages are `{"reported": {...}}` (no shadow `state` wrapper). At least one
-    of the known sections must be present, so an empty/ack frame doesn't get HA ahead
-    of the device.
+    The envelope is `{"topic": ..., "payload": {"reported": {...}}, "serviceCode": ...}`,
+    so the reported state is nested one level inside `payload`. At least one known section
+    must be present, so an empty/ack frame doesn't get us ahead of the device. The MQTT
+    message topic's last segment is the device id (used when roomController omits it).
     """
-    reported = (payload or {}).get("reported")
+    inner = (payload or {}).get("payload")
+    if not isinstance(inner, dict):
+        inner = payload or {}
+    reported = inner.get("reported")
     if not isinstance(reported, dict):
         return None
     if not any(k in reported for k in ("roomController", "odu", "airMonitor", "idu")):
@@ -171,14 +175,14 @@ class NavienMqtt:
     def _on_message(self, _client, _userdata, message):
         import json
 
-        self._log(f"navien mqtt: msg on {message.topic}")
         try:
             payload = json.loads(message.payload.decode("utf-8", "replace"))
         except Exception:
             return
         parsed = self._parser(message.topic, payload)
         if parsed is None:
-            self._log(f"navien mqtt: msg on {message.topic} did not parse (keys={list(payload)})")
+            dump = json.dumps(payload, ensure_ascii=False)[:900]
+            self._log(f"navien mqtt: unparsed {message.topic}: {dump}")
             return
         device_id, reported = parsed
         # Hop off the paho thread before touching Homey/asyncio state.
