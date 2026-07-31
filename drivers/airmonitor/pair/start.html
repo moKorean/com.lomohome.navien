@@ -1,6 +1,6 @@
 <style>
   /* Pair views are HTML fragments injected into Homey's own page — no doctype/head/body,
-     and Homey provides the `Homey` object and calls onHomeyReady (no /homey.js include). */
+     and no /homey.js include (Homey provides the object + calls onHomeyReady). */
   #navien-start { max-width:520px; margin:0 auto; padding:24px 16px; text-align:center;
     font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color:#1b1b1f; }
   #navien-start .card { background:#fff; border:1px solid #e2e2e8; border-radius:10px; padding:24px 16px; }
@@ -20,35 +20,44 @@
 </div>
 
 <script type="text/javascript">
-  function onHomeyReady(Homey) {
+  // onHomeyReady is unreliable across Homey versions, and the Homey global starts life
+  // as a constructor whose ready instance arrives later — so trigger init through every
+  // mechanism, check that ready/emit are actually functions, and let `started` dedupe.
+  var started = false, H = null;
+  function usable(o) { return !!o && typeof o.ready === "function" && typeof o.emit === "function"; }
+
+  function run(homeyObj) {
+    if (started) return;
+    var ref = usable(homeyObj) ? homeyObj
+            : (typeof Homey !== "undefined" && usable(Homey) ? Homey : null);
+    if (!ref) return;
+    if (!document.getElementById("msg")) return;
+    started = true; H = ref;
+    try { H.ready(); } catch (e) { /* ignore */ }
+    flow();
+  }
+
+  function flow() {
     var msg = document.getElementById("msg");
     var btn = document.getElementById("login");
     var settled = false;
-
     function toLogin(reason) {
       if (settled) return;
       settled = true;
       msg.textContent = reason || "나비엔 계정 로그인이 필요합니다.";
       btn.style.display = "inline-block";
-      btn.onclick = function () { Homey.showView("login_credentials"); };
+      btn.onclick = function () { H.showView("login_credentials"); };
     }
-    function toList() {
-      if (settled) return;
-      settled = true;
-      Homey.showView("list_devices");
-    }
+    function toList() { if (settled) return; settled = true; H.showView("list_devices"); }
 
-    // Safety net: never spin forever. check_session does no network, so this only
-    // fires if the backend never answers.
-    setTimeout(function () { toLogin("나비엔 계정 로그인이 필요합니다."); }, 6000);
-
-    Promise.resolve(Homey.emit("check_session", {}))
-      .then(function (res) {
-        if (res && res.ready) { toList(); }
-        else { toLogin(res && res.reason); }
-      })
+    setTimeout(function () { toLogin("나비엔 계정 로그인이 필요합니다."); }, 8000);
+    Promise.resolve(H.emit("check_session", {}))
+      .then(function (res) { if (res && res.ready) { toList(); } else { toLogin(res && res.reason); } })
       .catch(function (err) { toLogin(String((err && err.message) || err)); });
-
-    Homey.ready();
   }
+
+  function onHomeyReady(homeyObj) { run(homeyObj); }
+  document.addEventListener("DOMContentLoaded", function () { run(); });
+  window.addEventListener("load", function () { run(); });
+  (function poll(n) { if (started || n <= 0) return; run(); setTimeout(function () { poll(n - 1); }, 100); })(80);
 </script>

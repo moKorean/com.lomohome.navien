@@ -27,17 +27,35 @@
 </div>
 
 <script type="text/javascript">
-  function onHomeyReady(Homey) {
+  var started = false, H = null;
+  function usable(o) { return !!o && typeof o.ready === "function" && typeof o.emit === "function"; }
+
+  function run(homeyObj) {
+    if (started) return;
+    var ref = usable(homeyObj) ? homeyObj
+            : (typeof Homey !== "undefined" && usable(Homey) ? Homey : null);
+    if (!ref) return;
+    if (!document.getElementById("save")) return;
+    started = true; H = ref;
+    try { H.ready(); } catch (e) { /* ignore */ }
+    wire();
+  }
+
+  function wire() {
     function msg(t, c) { var m = document.getElementById("msg"); m.textContent = t; m.className = "msg " + (c || ""); }
     document.getElementById("save").addEventListener("click", function () {
       var u = document.getElementById("username").value.trim();
       var p = document.getElementById("password").value;
       if (!u || !p) { msg("아이디와 비밀번호를 입력하세요.", "err"); return; }
       var btn = this; btn.disabled = true; msg("로그인 중…");
-      Promise.resolve(Homey.emit("login", { username: u, password: p }))
-        .then(function () { msg("완료되었습니다.", "ok"); Homey.done(); })
+      Promise.resolve(H.emit("login", { username: u, password: p }))
+        .then(function () { msg("완료되었습니다.", "ok"); H.done(); })
         .catch(function (err) { btn.disabled = false; msg(String((err && err.message) || err), "err"); });
     });
-    Homey.ready();
   }
+
+  function onHomeyReady(homeyObj) { run(homeyObj); }
+  document.addEventListener("DOMContentLoaded", function () { run(); });
+  window.addEventListener("load", function () { run(); });
+  (function poll(n) { if (started || n <= 0) return; run(); setTimeout(function () { poll(n - 1); }, 100); })(80);
 </script>
