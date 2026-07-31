@@ -1,21 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 960" width="960" height="960">
-  <g fill="none" stroke="#111111" stroke-width="44"
+  <g fill="none" stroke="#111111" stroke-width="34"
      stroke-linecap="round" stroke-linejoin="round">
-    <rect x="330" y="150" width="300" height="660" rx="118"/>
-    <path d="M330 372 h-74 a26 26 0 0 0 -26 26 v92 a26 26 0 0 0 26 26 h74"/>
+    <rect x="330" y="210" width="250" height="560" rx="92"/>
+    <path d="M422 210 L486 164 H552 L488 210"/>
+    <path d="M580 302 L644 256 V632 L580 678"/>
+    <path d="M330 458 h-30 a16 16 0 0 0 -16 16 v60 a16 16 0 0 0 16 16 h30"/>
   </g>
   <g fill="#111111">
-    <circle cx="390" cy="402" r="17"/>
-    <circle cx="450" cy="402" r="17"/>
-    <circle cx="510" cy="402" r="17"/>
-    <circle cx="570" cy="402" r="17"/>
-    <circle cx="390" cy="462" r="17"/>
-    <circle cx="450" cy="462" r="17"/>
-    <circle cx="510" cy="462" r="17"/>
-    <circle cx="570" cy="462" r="17"/>
-    <circle cx="390" cy="522" r="17"/>
-    <circle cx="450" cy="522" r="17"/>
-    <circle cx="510" cy="522" r="17"/>
-    <circle cx="570" cy="522" r="17"/>
+    <circle cx="380" cy="430" r="14"/>
+    <circle cx="430" cy="430" r="14"/>
+    <circle cx="480" cy="430" r="14"/>
+    <circle cx="530" cy="430" r="14"/>
+    <circle cx="380" cy="480" r="14"/>
+    <circle cx="430" cy="480" r="14"/>
+    <circle cx="480" cy="480" r="14"/>
+    <circle cx="530" cy="480" r="14"/>
+    <circle cx="380" cy="530" r="14"/>
+    <circle cx="430" cy="530" r="14"/>
+    <circle cx="480" cy="530" r="14"/>
+    <circle cx="530" cy="530" r="14"/>
   </g>
 </svg>

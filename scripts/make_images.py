@@ -111,32 +111,50 @@ def _app_icon() -> str:
 
 
 def _airone_icon() -> str:
-    return f'''  <g fill="none" stroke="{INK}" stroke-width="44"
+    # ERV box in an oblique (cabinet) projection — a slight side view, per the Homey
+    # icon guideline. Front + top + right faces, two duct ports rising from the top.
+    x0, y0, w, h = 150, 400, 500, 360
+    x1, y1 = x0 + w, y0 + h
+    dx, dy = 150, 110
+    ducts = ""
+    for cx in (x0 + 160, x0 + 360):
+        by = y0 - dy + 60
+        ducts += (f'\n    <ellipse cx="{cx+70}" cy="{by-90}" rx="46" ry="17"/>'
+                  f'\n    <path d="M{cx+24} {by-90} V{by-20}"/>'
+                  f'\n    <path d="M{cx+116} {by-90} V{by-20}"/>')
+    return f'''  <g fill="none" stroke="{INK}" stroke-width="34"
      stroke-linecap="round" stroke-linejoin="round">
-    <rect x="196" y="316" width="568" height="372" rx="46"/>
-    <path d="M300 316 v-80 a34 34 0 0 1 34-34 h22 a34 34 0 0 1 34 34 v80"/>
-    <path d="M572 316 v-80 a34 34 0 0 1 34-34 h22 a34 34 0 0 1 34 34 v80"/>
-    <path d="M764 432 h80 a34 34 0 0 1 34 34 v22 a34 34 0 0 1 -34 34 h-80"/>
-    <line x1="196" y1="474" x2="764" y2="474"/>
+    <path d="M{x0} {y0} H{x1} V{y1} H{x0} Z"/>
+    <path d="M{x0} {y0} L{x0+dx} {y0-dy} H{x1+dx} L{x1} {y0}"/>
+    <path d="M{x1} {y0} L{x1+dx} {y0-dy} V{y1-dy} L{x1} {y1}"/>
+    <line x1="{x0}" y1="{y0+150}" x2="{x1}" y2="{y0+150}"/>
   </g>
   <g fill="{INK}">
-    <circle cx="326" cy="586" r="30"/>
-    <circle cx="634" cy="586" r="30"/>
+    <circle cx="{x0+120}" cy="{y0+255}" r="24"/>
+    <circle cx="{x1-120}" cy="{y0+255}" r="24"/>
+  </g>
+  <g fill="none" stroke="{INK}" stroke-width="30"
+     stroke-linecap="round" stroke-linejoin="round">{ducts}
   </g>
 '''
 
 
 def _airmonitor_icon() -> str:
-    cx = 480
-    cols = [cx + (c - 1.5) * 60 for c in range(4)]
-    rows = [402 + r * 60 for r in range(3)]
+    # Upright fabric unit with a slight side view (oblique top + right faces), a
+    # dot-matrix display, and a small tag on the left edge.
+    x, y, w, h, rx = 330, 210, 250, 560, 92
+    dx, dy = 64, 46
+    cx = x + w / 2
     dots = "\n".join(
-        f'    <circle cx="{x:.0f}" cy="{y:.0f}" r="17"/>' for y in rows for x in cols
+        f'    <circle cx="{cx + (c-1.5)*50:.0f}" cy="{y+220 + r*50}" r="14"/>'
+        for r in range(3) for c in range(4)
     )
-    return f'''  <g fill="none" stroke="{INK}" stroke-width="44"
+    return f'''  <g fill="none" stroke="{INK}" stroke-width="34"
      stroke-linecap="round" stroke-linejoin="round">
-    <rect x="330" y="150" width="300" height="660" rx="118"/>
-    <path d="M330 372 h-74 a26 26 0 0 0 -26 26 v92 a26 26 0 0 0 26 26 h74"/>
+    <rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}"/>
+    <path d="M{x+rx} {y} L{x+rx+dx} {y-dy} H{x+w-rx+dx} L{x+w-rx} {y}"/>
+    <path d="M{x+w} {y+rx} L{x+w+dx} {y+rx-dy} V{y+h-rx-dy} L{x+w} {y+h-rx}"/>
+    <path d="M{x} {y+248} h-30 a16 16 0 0 0 -16 16 v60 a16 16 0 0 0 16 16 h30"/>
   </g>
   <g fill="{INK}">
 {dots}
