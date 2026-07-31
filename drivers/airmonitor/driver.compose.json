@@ -5,7 +5,6 @@
   },
   "class": "sensor",
   "capabilities": [
-    "navien_air_grade",
     "measure_co2",
     "navien_pm1",
     "measure_pm25",
@@ -15,7 +14,8 @@
     "navien_tvoc",
     "navien_tvoc_grade",
     "navien_radon",
-    "navien_radon_grade"
+    "navien_radon_grade",
+    "navien_air_grade"
   ],
   "platforms": [
     "local"

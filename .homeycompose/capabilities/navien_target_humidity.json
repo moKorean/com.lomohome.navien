@@ -1,20 +1,16 @@
 {
   "type": "number",
   "title": {
-    "en": "Target humidity",
-    "ko": "목표 습도"
+    "en": "Target humidity (%)",
+    "ko": "목표 습도 (%)"
   },
   "getable": true,
   "setable": true,
   "uiComponent": "slider",
-  "icon": "/assets/capabilities/mdi-air-humidifier.svg",
+  "icon": "/assets/capabilities/mdi-water-percent.svg",
   "min": 40,
   "max": 70,
   "step": 5,
   "decimals": 0,
-  "units": {
-    "en": "%",
-    "ko": "%"
-  },
   "insights": true
 }
