@@ -59,18 +59,33 @@ class _Flow:
         await compat.setting_set(self.driver.homey, SETTING_HOME_SEQ, str(self.home_seq))
 
 
-async def _login_handler(flow, data) -> bool:
-    username = (data or {}).get("username", "").strip()
-    password = (data or {}).get("password", "")
+def _payload(data, kwargs) -> dict:
+    """The credentials dict, however this Homey build delivers it. The login_credentials
+    template usually passes it as the first positional arg, but some builds wrap it in a
+    `body`/`data` kwarg — mirror api.py's tolerance so device-login never silently sees
+    empty fields."""
+    for candidate in (data, kwargs.get("body"), kwargs.get("data"), kwargs):
+        if isinstance(candidate, dict) and ("username" in candidate or "password" in candidate):
+            return candidate
+    return data if isinstance(data, dict) else {}
+
+
+async def _login_handler(flow, data, kwargs) -> bool:
+    body = _payload(data, kwargs)
+    username = str(body.get("username", "")).strip()
+    password = str(body.get("password", ""))
+    flow.driver.log(f"pair: login attempt (user={'set' if username else 'empty'})")
     if not username or not password:
         raise Exception("아이디와 비밀번호를 입력하세요.")
     try:
         await flow.open(username, password)
     except NavienAuthError as exc:
+        flow.driver.log(f"pair: login rejected: {exc}")
         raise Exception(str(exc)) from exc
     except TimeoutError:
         raise Exception(_SLOW_LOGIN) from None
     await flow.save(username, password)
+    flow.driver.log(f"pair: login ok, credentials saved (home_seq={flow.home_seq})")
     return True
 
 
@@ -78,17 +93,17 @@ def install(driver, session, build_devices) -> None:
     """Wire the standard pair handlers onto `session`."""
     flow = _Flow(driver)
 
-    async def on_check_session(data=None) -> dict:
+    async def on_check_session(data=None, **kwargs) -> dict:
         username = await compat.setting_get(driver.homey, SETTING_USERNAME)
         password = await compat.setting_get(driver.homey, SETTING_PASSWORD)
         ready = bool(username and password)
         driver.log(f"pair: check_session ready={ready}")
         return {"ready": ready, "reason": "" if ready else "먼저 나비엔 계정으로 로그인하세요."}
 
-    async def on_login(data) -> bool:
-        return await _login_handler(flow, data)
+    async def on_login(data=None, **kwargs) -> bool:
+        return await _login_handler(flow, data, kwargs)
 
-    async def on_list_homes(data=None) -> list:
+    async def on_list_homes(data=None, **kwargs) -> list:
         # Bounded so the choose-home view never spins forever: a raised handler can leave
         # the webview's emit promise pending, so on any failure return [] instead — the
         # view then advances to list_devices, which surfaces errors through its template.
@@ -100,7 +115,7 @@ def install(driver, session, build_devices) -> None:
         driver.log(f"pair: list_homes -> {len(flow.homes)} home(s)")
         return [{"seq": seq, "name": name} for seq, name in flow.homes]
 
-    async def on_select_home(data=None) -> bool:
+    async def on_select_home(data=None, **kwargs) -> bool:
         seq = (data or {}).get("seq")
         if seq is None:
             return False
@@ -109,11 +124,16 @@ def install(driver, session, build_devices) -> None:
         driver.log(f"pair: home selected {flow.home_seq}")
         return True
 
-    async def on_list_devices(data=None) -> list:
+    async def on_list_devices(data=None, **kwargs) -> list:
         try:
             await flow.ensure()
         except TimeoutError:
             raise Exception(_SLOW_LOGIN) from None
+        except Exception as exc:
+            driver.log(f"pair: list_devices ensure failed: {exc}")
+            raise Exception(
+                "먼저 나비엔 계정으로 로그인하세요. (앱 설정 또는 이 화면의 로그인)"
+            ) from exc
         devices = await asyncio.wait_for(
             build_devices(flow.api, flow.home_seq), timeout=LOGIN_TIMEOUT_S
         )
@@ -131,7 +151,7 @@ def install_repair(driver, session) -> None:
     """Wire the repair handler: re-enter the account to refresh stored credentials."""
     flow = _Flow(driver)
 
-    async def on_login(data) -> bool:
-        return await _login_handler(flow, data)
+    async def on_login(data=None, **kwargs) -> bool:
+        return await _login_handler(flow, data, kwargs)
 
     session.set_handler("login", on_login)

@@ -44,7 +44,13 @@
     function toLogin(reason) {
       if (settled) return;
       settled = true;
-      msg.textContent = reason || "나비엔 계정 로그인이 필요합니다.";
+      msg.innerHTML = "";
+      var line = document.createElement("div");
+      line.textContent = reason || "나비엔 계정 로그인이 필요합니다.";
+      var hint = document.createElement("div");
+      hint.style.cssText = "margin-top:8px;font-size:13px;color:#8a8a92;";
+      hint.textContent = "아래에서 로그인하면 계정이 저장되어 다음부터는 바로 진행됩니다. (앱 설정에서 미리 로그인해 두어도 됩니다.)";
+      msg.appendChild(line); msg.appendChild(hint);
       btn.style.display = "inline-block";
       btn.onclick = function () { H.showView("login_credentials"); };
     }

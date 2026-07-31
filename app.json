@@ -495,12 +495,6 @@
             }
           },
           "navigation": {
-            "next": "choose_home"
-          }
-        },
-        {
-          "id": "choose_home",
-          "navigation": {
             "next": "list_devices"
           }
         },
@@ -579,12 +573,6 @@
               "ko": "비밀번호"
             }
           },
-          "navigation": {
-            "next": "choose_home"
-          }
-        },
-        {
-          "id": "choose_home",
           "navigation": {
             "next": "list_devices"
           }
