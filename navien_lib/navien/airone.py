@@ -26,6 +26,7 @@ from navien_lib.const import (
     MODES_WITH_HUMIDITY,
     OPTION_NAMES,
     OPTION_NONE,
+    RUNNING_AUTO_DRY,
     RUNNING_NAMES,
     RUNNING_OFF,
     RUNNING_ON,
@@ -292,8 +293,15 @@ class AironeDevice:
         return label.get(language, label.get("en")) if label else None
 
     def status_text(self, language: str = "en"):
-        """One-line '운전모드 · 풍량 · 옵션' text for a read-only status sensor."""
-        parts = [self.mode_name(language), self.fan_name(language)]
+        """One-line '운전모드 · 풍량 · 옵션' text for a read-only status sensor.
+
+        While the unit is auto-drying (running state 4, after dehumidify) that leads the
+        line so it's obvious that's what's happening.
+        """
+        parts = []
+        if self.running == RUNNING_AUTO_DRY:
+            parts.append(self.running_name(language))
+        parts += [self.mode_name(language), self.fan_name(language)]
         if self.option not in (None, OPTION_NONE):
             parts.append(self.option_name(language))
         parts = [p for p in parts if p]
