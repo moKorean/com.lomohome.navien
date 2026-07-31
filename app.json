@@ -329,7 +329,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/capabilities/air.svg",
+      "icon": "/assets/capabilities/grade.svg",
       "values": [
         {
           "id": "0",
@@ -632,7 +632,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/capabilities/air.svg",
+      "icon": "/assets/capabilities/radon.svg",
       "decimals": 0,
       "units": {
         "en": "Bq/m³",

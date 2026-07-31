@@ -176,7 +176,9 @@ class NavienApi:
         data = await self._authed(
             "GET", f"/devices/{device_seq}/air-sensor?{self._q(home_seq)}"
         )
-        return (data or {}).get("sensorList") or []
+        sensor_list = (data or {}).get("sensorList") or []
+        self.log(f"navien air-sensor raw: {json.dumps(sensor_list, ensure_ascii=False)[:700]}")
+        return sensor_list
 
     # --- request plumbing --------------------------------------------------
 
@@ -305,6 +307,9 @@ class NavienApi:
             if not allow_redirects:
                 handlers.append(_NoRedirect())
             self._opener = urllib.request.build_opener(*handlers)
+        if isinstance(body, str):
+            # Control payloads (the \/-escaped raw bodies) arrive as str; urllib needs bytes.
+            body = body.encode("utf-8")
         req = urllib.request.Request(url, data=body, method=method)
         for key, value in headers.items():
             req.add_header(key, value)

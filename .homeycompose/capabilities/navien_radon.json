@@ -4,7 +4,7 @@
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
-  "icon": "/assets/capabilities/air.svg",
+  "icon": "/assets/capabilities/radon.svg",
   "decimals": 0,
   "units": { "en": "Bq/m³", "ko": "Bq/㎥" }
 }
