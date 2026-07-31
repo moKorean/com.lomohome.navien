@@ -221,6 +221,7 @@ class AironeDevice_(device.Device):
         command — shadow state only arrives on change otherwise, so a just-added device
         would sit empty until first touched.
         """
+        wants_sensors = True
         for raw in await self._api.list_devices(self._home_seq):
             unit = AironeDevice.from_raw(raw, log=self.log)
             if unit and str(unit.device_id) == self._device_id:
@@ -233,13 +234,15 @@ class AironeDevice_(device.Device):
                 # airVolume/option/running, so merging it into the live state would clobber
                 # what MQTT reported — the status request below refreshes the live values.
                 await self._sync_humidity_range(unit.humidity_range())
+                wants_sensors = unit.wants_air_sensors()
                 break
 
-        try:
-            sensors = await self._api.air_sensor(self._device_seq, self._home_seq)
-            self._unit.apply_air_sensors(sensors)
-        except Exception as exc:
-            self.log(f"air-sensor read failed: {exc}")
+        if wants_sensors:
+            try:
+                sensors = await self._api.air_sensor(self._device_seq, self._home_seq)
+                self._unit.apply_air_sensors(sensors)
+            except Exception as exc:
+                self.log(f"air-sensor read failed: {exc}")
 
         if self._unit.is_on or initial:
             await self._request_status()

@@ -47,6 +47,38 @@ def deep_merge(base: dict, incoming: dict) -> dict:
     return base
 
 
+def strip_capability_fields(incoming: dict) -> dict:
+    """Drop the capability *descriptors* that ride along in some state replies.
+
+    A `status` request is sometimes answered with the whole DID document, whose
+    `roomController.mode` is the *supported-combinations array* rather than the current
+    mode (an int), and whose `additionalData` is a range table
+    (`{"type":1,"min":0,"max":4}`) rather than a value (`{"type":3,"value":40}`).
+    Merging those clobbers the live mode/humidity — the mode blanks out and the fan
+    picker goes unavailable. The capability list is already read from the device list, so
+    here we discard it and keep only real state. Ported from navien_smart_ha (v0.13.2).
+    """
+    controller = incoming.get("roomController")
+    if not isinstance(controller, dict):
+        return incoming
+    inner = dict(controller)
+    changed = False
+    if isinstance(inner.get("mode"), list):
+        del inner["mode"]
+        changed = True
+    extra = inner.get("additionalData")
+    if isinstance(extra, list) and not any(
+        isinstance(item, dict) and "value" in item for item in extra
+    ):
+        del inner["additionalData"]
+        changed = True
+    if not changed:
+        return incoming
+    trimmed = dict(incoming)
+    trimmed["roomController"] = inner
+    return trimmed
+
+
 def _first(d: dict, *keys, default=None):
     for k in keys:
         if isinstance(d, dict) and d.get(k) is not None:
@@ -183,7 +215,21 @@ class AironeDevice:
         return {}
 
     def apply_reported(self, reported: dict) -> None:
-        deep_merge(self.reported, reported or {})
+        deep_merge(self.reported, strip_capability_fields(reported or {}))
+
+    def wants_air_sensors(self) -> bool:
+        """Whether it's worth asking this unit for air quality.
+
+        Only skip when we're sure there's nothing: no attached AirMonitor and the room
+        controller declared an empty `sensor` list. A missing list means "unknown", so we
+        still ask. A ventilator with no monitor is what this spares. From navien_smart_ha.
+        """
+        if self.air_monitors():
+            return True
+        sensor = self._room.get("sensor")
+        if not isinstance(sensor, list):
+            return True
+        return bool(sensor)
 
     def apply_air_sensors(self, sensor_list: list) -> None:
         # Merge, don't replace: an occasional empty/partial poll must not wipe the

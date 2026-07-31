@@ -61,6 +61,21 @@ def test_deep_merge_preserves_siblings():
     assert u.mode == 9 and u.option == 4  # mode kept, only option changed
 
 
+def test_apply_reported_strips_capability_descriptors():
+    """A status reply that echoes the whole DID (mode as a capability list,
+    additionalData as a range table) must not clobber the live mode/humidity."""
+    u = airone.AironeDevice.from_raw(_sample_raw())
+    assert u.mode == 9 and u.target_humidity == 55
+    u.apply_reported({"roomController": {
+        "mode": [{"name": 9}, {"name": 10}],          # capability array, not the live int
+        "additionalData": [{"type": 1, "min": 0, "max": 4}],  # range table, no value
+        "running": 1,                                 # a real state field, kept
+    }})
+    assert u.mode == 9              # not overwritten by the list
+    assert u.target_humidity == 55  # not overwritten by the range table
+    assert u.running == 1
+
+
 def test_control_payloads():
     u = airone.AironeDevice.from_raw(_sample_raw())
     power = u.desired_power(False)["roomController"]

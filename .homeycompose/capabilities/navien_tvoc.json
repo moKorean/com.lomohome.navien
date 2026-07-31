@@ -9,5 +9,8 @@
   "uiComponent": "sensor",
   "icon": "/assets/capabilities/mdi-leaf.svg",
   "decimals": 0,
+  "units": {
+    "en": "ppb"
+  },
   "insights": true
 }
