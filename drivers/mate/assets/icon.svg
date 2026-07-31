@@ -1,8 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-  <g fill="none" stroke="#E2001A" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="40" y="96" width="176" height="96" rx="16"/>
-    <path d="M40 128h176"/>
-    <path d="M84 96V72a16 16 0 0 1 16-16h56a16 16 0 0 1 16 16v24"/>
-    <path d="M96 150h24M136 150h24" stroke-width="10"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 960" width="960" height="960">
+  <defs>
+    <clipPath id="pad">
+      <rect x="168" y="512" width="624" height="226" rx="56"/>
+    </clipPath>
+  </defs>
+  <path d="M516 250 a96 96 0 1 0 0 168 a74 74 0 1 1 0 -168 z" fill="#111111"/>
+  <g fill="none" stroke="#111111" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="168" y="512" width="624" height="226" rx="56" stroke-width="42"/>
+    <g clip-path="url(#pad)" stroke-width="18">
+    <line x1="182" y1="526" x2="182" y2="724"/>
+    <line x1="182" y1="526" x2="300" y2="724"/>
+    <line x1="220" y1="526" x2="418" y2="724"/>
+    <line x1="338" y1="526" x2="536" y2="724"/>
+    <line x1="456" y1="526" x2="654" y2="724"/>
+    <line x1="574" y1="526" x2="772" y2="724"/>
+    <line x1="692" y1="526" x2="778" y2="724"/>
+    <line x1="182" y1="526" x2="182" y2="724"/>
+    <line x1="300" y1="526" x2="182" y2="724"/>
+    <line x1="418" y1="526" x2="220" y2="724"/>
+    <line x1="536" y1="526" x2="338" y2="724"/>
+    <line x1="654" y1="526" x2="456" y2="724"/>
+    <line x1="772" y1="526" x2="574" y2="724"/>
+    <line x1="778" y1="526" x2="692" y2="724"/>
+    </g>
   </g>
 </svg>
