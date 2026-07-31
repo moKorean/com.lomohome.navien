@@ -20,6 +20,8 @@ from navien_lib.const import (
     AIRONE_CMD_STATUS,
     AIRONE_READBACK_DELAY_S,
     HUMIDITY_STEP,
+    MODES_WITH_HUMIDITY,
+    OPTION_NONE,
     OPTION_SAVER,
     OPTION_SLEEP,
     OPTION_TURBO,
@@ -119,6 +121,11 @@ class AironeDevice_(device.Device):
             if capability in self.get_capabilities():
                 self.register_capability_listener(capability, listener)
         self._humidity_range = None
+        self._modes_meta = ()
+        # Remembered so the humidity slider stays visible (with its title) even in modes
+        # that don't control humidity — attempts to change it there are rejected with a
+        # toast rather than the slider vanishing.
+        self._last_humidity = None
 
         self.log(f"{self.get_name()} init (seq={self._device_seq}, phys={self._physical_id})")
         self._poll_task = asyncio.create_task(self._run())
@@ -217,6 +224,10 @@ class AironeDevice_(device.Device):
                 # airVolume/option/running, so merging it into the live state would clobber
                 # what MQTT reported — the status request below refreshes the live values.
                 await self._sync_humidity_range(unit.humidity_range())
+                # Keep the server's per-mode capability metadata (supported fan speeds /
+                # humidity bands) for validating user commands and explaining rejections.
+                if unit.modes:
+                    self._modes_meta = unit.modes
                 break
 
         try:
@@ -257,9 +268,14 @@ class AironeDevice_(device.Device):
         # "m{mode}" picks a mode; "sleep" applies the sleep option to the current mode.
         v = str(value)
         if v == "sleep":
+            self._require(self._option_supported(OPTION_SLEEP),
+                          "현재 기기에서 수면 모드는 지원되지 않습니다.")
             desired = self._unit.desired_option(OPTION_SLEEP)
         else:
-            desired = self._unit.desired_mode(int(v[1:]))
+            mode = int(v[1:])
+            self._require(self._mode_supported(mode),
+                          "현재 기기에서 지원하지 않는 운전 모드입니다.")
+            desired = self._unit.desired_mode(mode)
         await self._airone(AIRONE_CMD_CHANGE_MODE, desired=desired)
         self._schedule_readback()
 
@@ -267,15 +283,64 @@ class AironeDevice_(device.Device):
         # "v{airVolume}" picks a fan speed; "o{option}" picks turbo/saver.
         v = str(value)
         if v.startswith("o"):
-            desired = self._unit.desired_option(int(v[1:]))
+            option = int(v[1:])
+            self._require(self._option_supported(option),
+                          f"{self._mode_label()} 모드에서는 이 풍량 옵션을 사용할 수 없습니다.")
+            desired = self._unit.desired_option(option)
         else:
-            desired = self._unit.desired_fan(int(v[1:]))
+            air_volume = int(v[1:])
+            self._require(self._fan_supported(air_volume),
+                          f"{self._mode_label()} 모드에서는 이 풍량을 사용할 수 없습니다.")
+            desired = self._unit.desired_fan(air_volume)
         await self._airone(AIRONE_CMD_CHANGE_MODE, desired=desired)
         self._schedule_readback()
 
     async def _on_set_humidity(self, value, opts=None):
+        if not self._humidity_allowed():
+            # Raising surfaces the message as a toast in the app and reverts the slider.
+            raise Exception(
+                f"{self._mode_label()} 모드에서는 습도 조절이 안 됩니다. "
+                f"제습 또는 환기제습 모드로 변경 후 조절하세요."
+            )
         await self._airone(AIRONE_CMD_CHANGE_MODE, desired=self._unit.desired_humidity(int(value)))
         self._schedule_readback()
+
+    # --- command validation (server-metadata aware, with safe fallbacks) --------
+
+    @staticmethod
+    def _require(ok: bool, message: str) -> None:
+        if not ok:
+            raise Exception(message)
+
+    def _mode_label(self) -> str:
+        return self._unit.mode_name(self._language) or "현재"
+
+    def _humidity_allowed(self) -> bool:
+        """True if the current mode controls target humidity. Prefer the server's
+        per-mode humidity band; fall back to the known humidity modes when metadata is
+        unavailable."""
+        mode = self._unit.mode
+        bands = [m.mode for m in self._modes_meta if m.humidity_min is not None]
+        if bands:
+            return mode in bands
+        return mode in MODES_WITH_HUMIDITY
+
+    def _mode_supported(self, mode: int) -> bool:
+        modes = {m.mode for m in self._modes_meta}
+        return mode in modes if modes else True
+
+    def _option_supported(self, option: int) -> bool:
+        options = {m.option for m in self._modes_meta if m.mode == self._unit.mode}
+        return option in options if options else True
+
+    def _fan_supported(self, air_volume: int) -> bool:
+        supported = set()
+        for m in self._modes_meta:
+            if m.mode == self._unit.mode and m.option in (OPTION_NONE, OPTION_SLEEP):
+                supported.update(m.supported_air_volumes)
+                if m.air_volume is not None:
+                    supported.add(m.air_volume)
+        return air_volume in supported if supported else True
 
     # --- flow-card entry points -------------------------------------------
 
@@ -341,7 +406,15 @@ class AironeDevice_(device.Device):
         await self._set("navien_airone_status", u.status_text(self._language))
         await self._set_choice("navien_airone_mode", _mode_id(u), _MODE_IDS)
         await self._set_choice("navien_airone_fan", _fan_id(u), _FAN_IDS)
-        await self._set("navien_target_humidity", u.target_humidity)
+        hum = u.target_humidity
+        if hum is not None:
+            self._last_humidity = hum
+        # Keep the slider populated (so it shows its "목표 습도" title) even outside the
+        # humidity modes, falling back to the mid-point of the allowed band.
+        if self._last_humidity is None:
+            low, high = u.humidity_range()
+            self._last_humidity = (low + high) // 2
+        await self._set("navien_target_humidity", hum if hum is not None else self._last_humidity)
         for capability, kind in _SENSOR_KINDS.items():
             reading = u.air_sensors.get(kind) or {}
             await self._set(capability, self._num(reading.get("value")))
