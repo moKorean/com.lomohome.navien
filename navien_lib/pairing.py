@@ -76,7 +76,6 @@ async def _login_handler(flow, data) -> bool:
 
 def install(driver, session, build_devices) -> None:
     """Wire the standard pair handlers onto `session`."""
-    driver.log("pair: on_pair — installing handlers")
     flow = _Flow(driver)
 
     async def on_check_session(data=None) -> dict:
