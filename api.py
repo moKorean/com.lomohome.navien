@@ -103,6 +103,24 @@ async def diagnostics(homey, **kwargs) -> dict:
     }
 
 
+async def check_connection(homey, **kwargs) -> dict:
+    """Actually log in with the saved account and report whether it works."""
+    username = await compat.setting_get(homey, SETTING_USERNAME)
+    password = await compat.setting_get(homey, SETTING_PASSWORD)
+    if not username or not password:
+        return {"ok": False, "configured": False, "error": "저장된 계정이 없습니다."}
+    api = NavienApi(username=username, password=password, log=lambda m: _log(homey, m))
+    try:
+        await api.login()
+    except NavienAuthError as exc:
+        return {"ok": False, "configured": True, "error": str(exc)}
+    except Exception as exc:
+        return {"ok": False, "configured": True, "error": f"연결에 실패했습니다: {exc}"}
+    homes = api.home_seqs()
+    return {"ok": True, "configured": True,
+            "homes": [{"seq": s, "name": n} for s, n in homes]}
+
+
 async def set_language(homey, **kwargs) -> dict:
     """Let the settings webview report the UI language (Homey Python i18n can't)."""
     body = _body(kwargs)

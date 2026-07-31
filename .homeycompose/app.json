@@ -19,7 +19,7 @@
   },
   "description": {
     "en": "Control your Navien AirOne ventilation, dehumidifier and air purifier",
-    "ko": "나비엔 에어원 환기·제습·청정을 홈이에서 제어하세요"
+    "ko": "나비엔 에어원 환기·제습·청정을 Homey에서 제어하세요"
   },
   "category": [
     "climate"
@@ -62,6 +62,10 @@
     "diagnostics": {
       "method": "GET",
       "path": "/diagnostics"
+    },
+    "check_connection": {
+      "method": "GET",
+      "path": "/check-connection"
     },
     "set_language": {
       "method": "POST",

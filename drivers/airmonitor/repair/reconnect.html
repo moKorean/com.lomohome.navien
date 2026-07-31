@@ -1,55 +1,43 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    :root { --red:#E2001A; --bg:#f2f2f5; --card:#fff; --text:#1b1b1f; --muted:#66666e;
-            --border:#e2e2e8; --ok:#1e8449; --err:#c0392b; }
-    * { box-sizing: border-box; }
-    html, body { background: var(--bg) !important; }
-    body { margin:0; color:var(--text); font-size:14px; line-height:1.5;
-           font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    .wrap { max-width:520px; margin:0 auto; padding:20px 16px; }
-    .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:20px 16px; }
-    h2 { font-size:17px; margin:0 0 6px; }
-    p { margin:0 0 10px; color:var(--muted); }
-    label { display:block; font-weight:600; margin:12px 0 4px; font-size:13px; }
-    input { width:100%; padding:9px; font-size:15px; border:1px solid var(--border); border-radius:6px; }
-    button { margin-top:16px; padding:10px 18px; border:0; border-radius:6px; background:var(--red);
-             color:#fff; font-size:15px; cursor:pointer; }
-    button[disabled] { opacity:.55; cursor:default; }
-    .msg { margin-top:13px; font-size:13px; white-space:pre-wrap; }
-    .msg.ok { color:var(--ok); } .msg.err { color:var(--err); }
-  </style>
-</head>
-<body>
-  <div class="wrap"><div class="card">
+<style>
+  #navien-repair { max-width:520px; margin:0 auto; padding:20px 16px;
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color:#1b1b1f; }
+  #navien-repair .card { background:#fff; border:1px solid #e2e2e8; border-radius:10px; padding:20px 16px; }
+  #navien-repair h2 { font-size:17px; margin:0 0 6px; }
+  #navien-repair p { margin:0 0 10px; color:#66666e; }
+  #navien-repair label { display:block; font-weight:600; margin:12px 0 4px; font-size:13px; }
+  #navien-repair input { width:100%; padding:9px; font-size:15px; border:1px solid #e2e2e8; border-radius:6px; }
+  #navien-repair button { margin-top:16px; padding:10px 18px; border:0; border-radius:6px; background:#E2001A;
+    color:#fff; font-size:15px; cursor:pointer; }
+  #navien-repair button[disabled] { opacity:.55; cursor:default; }
+  #navien-repair .msg { margin-top:13px; font-size:13px; white-space:pre-wrap; }
+  #navien-repair .msg.ok { color:#1e8449; } #navien-repair .msg.err { color:#c0392b; }
+</style>
+
+<div id="navien-repair">
+  <div class="card">
     <h2>나비엔 계정 다시 로그인</h2>
     <p>비밀번호를 바꾸셨거나 로그인이 만료되면 여기서 다시 로그인하세요.</p>
     <label>아이디</label>
     <input id="username" type="text" autocomplete="username" spellcheck="false">
     <label>비밀번호</label>
     <input id="password" type="password" autocomplete="current-password">
-    <button id="save">로그인 & 저장</button>
+    <button id="save">로그인 &amp; 저장</button>
     <div id="msg" class="msg"></div>
-  </div></div>
+  </div>
+</div>
 
-  <script type="text/javascript" src="/homey.js" data-origin="repair"></script>
-  <script type="text/javascript">
-    function onHomeyReady(Homey) {
-      function msg(t, c) { var m = document.getElementById("msg"); m.textContent = t; m.className = "msg " + (c || ""); }
-      document.getElementById("save").addEventListener("click", function () {
-        var u = document.getElementById("username").value.trim();
-        var p = document.getElementById("password").value;
-        if (!u || !p) { msg("아이디와 비밀번호를 입력하세요.", "err"); return; }
-        var btn = this; btn.disabled = true; msg("로그인 중…");
-        Promise.resolve(Homey.emit("login", { username: u, password: p }))
-          .then(function () { msg("완료되었습니다.", "ok"); Homey.done(); })
-          .catch(function (err) { btn.disabled = false; msg(String((err && err.message) || err), "err"); });
-      });
-      Homey.ready();
-    }
-  </script>
-</body>
-</html>
+<script type="text/javascript">
+  function onHomeyReady(Homey) {
+    function msg(t, c) { var m = document.getElementById("msg"); m.textContent = t; m.className = "msg " + (c || ""); }
+    document.getElementById("save").addEventListener("click", function () {
+      var u = document.getElementById("username").value.trim();
+      var p = document.getElementById("password").value;
+      if (!u || !p) { msg("아이디와 비밀번호를 입력하세요.", "err"); return; }
+      var btn = this; btn.disabled = true; msg("로그인 중…");
+      Promise.resolve(Homey.emit("login", { username: u, password: p }))
+        .then(function () { msg("완료되었습니다.", "ok"); Homey.done(); })
+        .catch(function (err) { btn.disabled = false; msg(String((err && err.message) || err), "err"); });
+    });
+    Homey.ready();
+  }
+</script>
