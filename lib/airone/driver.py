@@ -26,6 +26,9 @@ class AironeDriver(driver.Driver):
     async def on_pair(self, session) -> None:
         pairing.install(self, session, self._build_devices)
 
+    async def on_repair(self, session, device=None) -> None:
+        pairing.install_repair(self, session)
+
     async def _build_devices(self, api, home_seq) -> list:
         devices = []
         for raw in await api.list_devices(home_seq):

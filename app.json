@@ -148,6 +148,12 @@
             }
           },
           "navigation": {
+            "next": "choose_home"
+          }
+        },
+        {
+          "id": "choose_home",
+          "navigation": {
             "next": "list_devices"
           }
         },
@@ -161,6 +167,11 @@
         {
           "id": "add_devices",
           "template": "add_devices"
+        }
+      ],
+      "repair": [
+        {
+          "id": "reconnect"
         }
       ],
       "id": "airone"
@@ -201,6 +212,12 @@
             }
           },
           "navigation": {
+            "next": "choose_home"
+          }
+        },
+        {
+          "id": "choose_home",
+          "navigation": {
             "next": "list_devices"
           }
         },
@@ -214,6 +231,11 @@
         {
           "id": "add_devices",
           "template": "add_devices"
+        }
+      ],
+      "repair": [
+        {
+          "id": "reconnect"
         }
       ],
       "id": "mate"

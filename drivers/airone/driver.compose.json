@@ -46,6 +46,10 @@
         "usernameLabel": { "en": "Navien account ID", "ko": "나비엔 스마트 아이디" },
         "passwordLabel": { "en": "Password", "ko": "비밀번호" }
       },
+      "navigation": { "next": "choose_home" }
+    },
+    {
+      "id": "choose_home",
       "navigation": { "next": "list_devices" }
     },
     {
@@ -56,6 +60,11 @@
     {
       "id": "add_devices",
       "template": "add_devices"
+    }
+  ],
+  "repair": [
+    {
+      "id": "reconnect"
     }
   ]
 }
