@@ -1,80 +1,84 @@
-# 나비엔 스마트 커뮤니티 (Homey)
+# Navien Smart Community (Homey)
 
-경동나비엔 **나비엔 에어원**(환기·제습·청정)과 **숙면매트**를 Homey에서 제어하는 앱입니다.
-공식 나비엔 스마트 앱이 쓰는 서버를 그대로 사용합니다 — 제어는 REST, 실시간 상태는 AWS IoT
-MQTT. 나비엔 **공식 제품이 아닙니다.**
+A Homey app that controls Kyungdong **Navien AirOne** (ventilation / dehumidify /
+air-purify) and **Navien sleep mats**. It talks to the same Navien Smart cloud the
+official app uses — REST for control, AWS IoT MQTT for realtime state. This is an
+**unofficial, community-built app and is not affiliated with Navien.**
 
-## 출처 · 라이선스
+> 한국어 README는 [`README.ko.md`](./README.ko.md)를 참고하세요.
 
-이 앱은 Home Assistant 통합 **navien_smart_ha**를 Homey로 포팅한 것입니다.
+## Credits · License
 
-- **원작자:** Eui Young Jung
-- **원 프로젝트:** https://github.com/ripe-avocado/navien_smart_ha
-- **원 프로젝트 라이선스:** MIT
+This app is a Homey port of the Home Assistant integration **navien_smart_ha**.
 
-원 프로젝트는 MIT 라이선스로 사용하며, 원 저작권·허가 고지 전문은 [`NOTICE`](./NOTICE)에
-보존되어 있습니다. 이 앱의 프로토콜 지식(로그인 흐름, MQTT 전송, 에어원·매트 값 표)은 모두 원
-프로젝트에서 비롯되었습니다. 자세한 설계는 [`docs/PORTING.md`](./docs/PORTING.md)를 참고하세요.
+- **Original author:** Eui Young Jung
+- **Original project:** https://github.com/ripe-avocado/navien_smart_ha
+- **Original license:** MIT
 
-Homey 포팅 자체는 © 2026 Geunwon Mo.
+The original project is used under the MIT license; the full copyright and permission
+notice is preserved in [`NOTICE`](./NOTICE). All of this app's protocol knowledge (the
+login flow, MQTT transport, and the AirOne/mat value tables) comes from the original
+project. See [`docs/PORTING.md`](./docs/PORTING.md) for the design.
 
-## 지원 범위
+The Homey port itself is © 2026 Geunwon Mo.
 
-| 기기 | 상태 |
+## Features
+
+- **AirOne control** — power, operating mode (auto, ventilate, ventilate + dehumidify,
+  dehumidify, purify, cooking, sleep, bypass), fan speed (auto, saver, low, high, turbo),
+  and a server-checked target humidity for the dehumidify modes.
+- **Air-quality sensors** — PM1.0, PM2.5, PM10, CO₂, TVOC, radon, temperature, humidity,
+  an overall air-quality score and filter usage. TVOC and radon also carry a "good / bad"
+  grade label. Every reading is parsed as a number, so it graphs in Homey Insights.
+- **AirMonitor** — paired as its own sensor device.
+- **Sleep mats** — power, per-zone temperature (0.5 °C) and heat level, single/double,
+  seasonal heating/cooling, running/error state and over-temperature warning.
+- **Homey Flow** — any reading can be a condition; operating mode, fan speed, power and
+  target humidity are actions.
+- **Mode-aware guidance** — a setting that doesn't apply to the current mode (e.g. humidity
+  in Auto) is rejected with a toast that explains why, and the control reverts.
+- **Account login** — sign in from the app settings or during device pairing; credentials
+  are saved either way. Multi-home selection and password-change repair are supported.
+
+## Support
+
+| Device | Status |
 | --- | --- |
-| 에어원 — 전원 | 포팅됨 |
-| 에어원 — 운전 모드(환기·청정·제습·자동 등) | 포팅됨 |
-| 에어원 — 풍량(미풍·약풍·강풍·자동) | 포팅됨 |
-| 에어원 — 옵션(터보·절전·숙면) | 포팅됨 |
-| 에어원 — 목표 습도(제습 계열, 서버 기반 범위) | 포팅됨 |
-| 에어원 — 공기질(PM1·PM2.5·PM10·CO₂·TVOC·라돈·온습도·종합등급·필터·오류) | 포팅됨 |
-| 에어원 — 모드/풍량/옵션을 서버 지원값으로 좁힘 | 포팅됨 |
-| 에어모니터 — 별도 기기로 등록, 공기질 센서 | 포팅됨 |
-| 숙면매트 — 전원, 구역별 온도(0.5℃)·단계(1.0L), 싱글·더블, 사계절 난방/냉방, 운전·오류 상태, 고온경고 | 포팅됨 (원 프로젝트에서 실기기 검증) |
-| 다중 home 선택, 비밀번호 변경 시 복구(repair) | 포팅됨 |
-| 보일러 · 월패드 | 범위 밖 |
+| AirOne — power, mode, fan, target humidity | Supported (control verified on real hardware) |
+| AirOne — air quality (PM, CO₂, TVOC, radon, temp/humidity, grade, filter, error) | Supported |
+| AirOne — mode/fan/option narrowed to server-supported values | Supported |
+| AirMonitor — separate device, air-quality sensors | Supported |
+| Sleep mat — power, per-zone temperature/level, heating/cooling, state | Supported (hardware-verified in the original project) |
+| Boiler · wall pad | Out of scope |
 
-> **검증 상태.** 원 프로젝트와 마찬가지로 **에어원 제어는 실기기 미검증**입니다(상태 읽기는 됨,
-> 제어는 하드웨어 확인 후 조정이 필요할 수 있음). 에어원은 신형(`modelCode ≥ 1000`)만 지원합니다.
-> 매트는 원 프로젝트에서 실기기 검증된 부분을 옮긴 것입니다.
+> **Compatibility.** Only newer AirOne units (`modelCode ≥ 1000`) are supported. Older
+> units use a completely different command envelope and topic scheme and cannot be reached
+> this way.
 
-## 설정
+## Setup
 
-1. Homey에 앱을 설치합니다.
-2. **앱 설정**을 열고 **나비엔 스마트** 계정 아이디/비밀번호로 로그인합니다.
-   (참고: 나비엔은 계정당 세션 1개만 허용해서, 휴대폰 앱을 열면 Homey 앱이 잠깐 로그아웃될 수
-   있습니다 — 자동으로 다시 로그인합니다.)
-3. 기기 추가 → **나비엔 에어원** 또는 **나비엔 숙면매트** → 계정의 기기 목록에서 선택합니다.
-   - 저장된 계정이 있으면 로그인 창을 건너뛰고 바로 목록으로 갑니다.
-   - 집(home)이 여러 개면 선택 화면이 뜹니다.
-4. 비밀번호를 바꿨다면 기기의 **복구(repair)**에서 다시 로그인할 수 있습니다.
+1. Install the app on your Homey.
+2. Open the **app settings** and sign in with your **Navien Smart** account.
+   (Note: Navien allows only one session per account, so opening the phone app may briefly
+   log the Homey app out — it re-logs-in automatically.)
+3. Add a device → **Navien AirOne / AirMonitor / Sleep mat** → pick it from the account's
+   device list.
+   - If an account is already saved, the login screen is skipped.
+   - If you didn't sign in from the app settings, logging in during pairing saves the
+     credentials too.
+4. If you change your password, sign in again from the device's **repair** flow.
 
-## 빌드
+## Build
 
-Homey **Python 런타임** 앱(SDK 3)입니다. 런타임 의존성은 `app.json`의 `pythonPackages`에
-선언된 `paho-mqtt`, `certifi`뿐입니다.
+A Homey **Python runtime** app (SDK 3). Its only runtime dependencies are `paho-mqtt` and
+`certifi`, declared in `app.json`'s `pythonPackages`.
 
 ```sh
-homey app build     # .homeycompose/* 를 app.json 으로 병합하고 python_packages 빌드
-homey app install   # 빌드 후 연결된 Homey 에 설치
-homey app run       # 개발 모드(실시간 로그) — 페어링/로그인 문제 진단용
-python3 -m pytest -q # 이식 로직 단위 테스트 (lib/navien/*)
+homey app build     # compose .homeycompose/* into app.json and build python_packages
+homey app install   # build and install to the connected Homey
+homey app run        # dev mode with live logs (for diagnosing pairing/login)
+python3 -m pytest -q # unit tests for the ported logic (navien_lib/navien/*)
 ```
 
-## 배포 전 남은 일 (TODO)
-
-- **스토어·드라이버 이미지가 임시 이미지입니다.** 규격 크기의 PNG는 들어 있지만(앱
-  `assets/images/{small,large,xlarge}.png` = 250×175 / 500×350 / 1000×700; 드라이버
-  `drivers/*/assets/images/*` = 75×75 / 500×500 / 1000×1000), 단순 생성 로고이므로 실제 제품
-  이미지로 교체가 필요합니다.
-- 실제 에어원 유닛으로 제어를 검증하고, 필요하면 `lib/navien/airone.py`를 조정합니다.
-
-### 아직 이식하지 않은 것 (원 통합 대비)
-
-- **구세대 에어원(`modelCode < 1000`)** — 명령 봉투와 토픽 규약이 신형과 완전히 달라(구세대는
-  `payload.request`, running 값 반전 등) 신형만 지원합니다.
-- **전체 진단 덤프의 정교한 식별자 가림** — 설정 페이지의 진단은 계정을 마스킹한 요약만
-  제공하며, 원 프로젝트 수준의 값-내부 식별자 스크러빙까지는 하지 않습니다.
-
-> 참고: 에어원 모드/풍량/옵션의 서버 기반 좁히기는 런타임에 `setCapabilityOptions`로 값 목록을
-> 갱신하며, 런타임이 이를 받아들이지 않으면 전체 고정 목록으로 자연스럽게 대체됩니다.
+Store and device images and icons are generated from the sources in `docs/` via
+`scripts/make_images.py`.
