@@ -1,0 +1,6 @@
+{
+  "title": { "en": "Power !{{is|is not}} on", "ko": "전원이 켜져 !{{있는가|있지 않은가}}" },
+  "args": [
+    { "type": "device", "name": "device", "filter": "driver_id=mate" }
+  ]
+}

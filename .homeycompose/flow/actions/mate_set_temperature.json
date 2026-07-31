@@ -1,0 +1,13 @@
+{
+  "title": { "en": "Set temperature", "ko": "온도 설정" },
+  "titleFormatted": { "en": "Set [[zone]] temperature to [[temperature]]°C", "ko": "[[zone]] 온도를 [[temperature]]℃로 설정" },
+  "args": [
+    { "type": "device", "name": "device", "filter": "driver_id=mate" },
+    { "type": "dropdown", "name": "zone", "values": [
+      { "id": "single", "title": { "en": "Single", "ko": "단일" } },
+      { "id": "left", "title": { "en": "Left", "ko": "좌측" } },
+      { "id": "right", "title": { "en": "Right", "ko": "우측" } }
+    ] },
+    { "type": "range", "name": "temperature", "min": 20, "max": 45, "step": 0.5, "value": 35, "label": "°C", "labelDecimals": 1 }
+  ]
+}

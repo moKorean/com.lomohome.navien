@@ -236,6 +236,58 @@
           }
         ],
         "id": "airone_mode_is"
+      },
+      {
+        "title": {
+          "en": "Power !{{is|is not}} on",
+          "ko": "전원이 켜져 !{{있는가|있지 않은가}}"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=mate"
+          }
+        ],
+        "id": "mate_power_is"
+      },
+      {
+        "title": {
+          "en": "Season !{{is|is not}}",
+          "ko": "계절이 !{{인가|아닌가}}"
+        },
+        "titleFormatted": {
+          "en": "Season !{{is|is not}} [[season]]",
+          "ko": "계절이 [[season]]!{{인가|아닌가}}"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=mate"
+          },
+          {
+            "type": "dropdown",
+            "name": "season",
+            "values": [
+              {
+                "id": "0",
+                "title": {
+                  "en": "Heating",
+                  "ko": "난방"
+                }
+              },
+              {
+                "id": "2",
+                "title": {
+                  "en": "Cooling",
+                  "ko": "냉방"
+                }
+              }
+            ]
+          }
+        ],
+        "id": "mate_season_is"
       }
     ],
     "actions": [
@@ -443,6 +495,191 @@
           }
         ],
         "id": "airone_set_power"
+      },
+      {
+        "title": {
+          "en": "Set heat level",
+          "ko": "난방 단계 설정"
+        },
+        "titleFormatted": {
+          "en": "Set [[zone]] heat level to [[level]]",
+          "ko": "[[zone]] 난방 단계를 [[level]](으)로 설정"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=mate"
+          },
+          {
+            "type": "dropdown",
+            "name": "zone",
+            "values": [
+              {
+                "id": "single",
+                "title": {
+                  "en": "Single",
+                  "ko": "단일"
+                }
+              },
+              {
+                "id": "left",
+                "title": {
+                  "en": "Left",
+                  "ko": "좌측"
+                }
+              },
+              {
+                "id": "right",
+                "title": {
+                  "en": "Right",
+                  "ko": "우측"
+                }
+              }
+            ]
+          },
+          {
+            "type": "range",
+            "name": "level",
+            "min": 0,
+            "max": 9,
+            "step": 1,
+            "value": 5,
+            "labelDecimals": 0
+          }
+        ],
+        "id": "mate_set_level"
+      },
+      {
+        "title": {
+          "en": "Set power",
+          "ko": "전원 설정"
+        },
+        "titleFormatted": {
+          "en": "Turn the mat [[power]]",
+          "ko": "매트 전원을 [[power]]"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=mate"
+          },
+          {
+            "type": "dropdown",
+            "name": "power",
+            "values": [
+              {
+                "id": "on",
+                "title": {
+                  "en": "On",
+                  "ko": "켬"
+                }
+              },
+              {
+                "id": "off",
+                "title": {
+                  "en": "Off",
+                  "ko": "끔"
+                }
+              }
+            ]
+          }
+        ],
+        "id": "mate_set_power"
+      },
+      {
+        "title": {
+          "en": "Set season (heating/cooling)",
+          "ko": "계절 설정 (난방/냉방)"
+        },
+        "titleFormatted": {
+          "en": "Set the mat to [[season]]",
+          "ko": "매트를 [[season]]으로 설정"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=mate"
+          },
+          {
+            "type": "dropdown",
+            "name": "season",
+            "values": [
+              {
+                "id": "0",
+                "title": {
+                  "en": "Heating",
+                  "ko": "난방"
+                }
+              },
+              {
+                "id": "2",
+                "title": {
+                  "en": "Cooling",
+                  "ko": "냉방"
+                }
+              }
+            ]
+          }
+        ],
+        "id": "mate_set_season"
+      },
+      {
+        "title": {
+          "en": "Set temperature",
+          "ko": "온도 설정"
+        },
+        "titleFormatted": {
+          "en": "Set [[zone]] temperature to [[temperature]]°C",
+          "ko": "[[zone]] 온도를 [[temperature]]℃로 설정"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=mate"
+          },
+          {
+            "type": "dropdown",
+            "name": "zone",
+            "values": [
+              {
+                "id": "single",
+                "title": {
+                  "en": "Single",
+                  "ko": "단일"
+                }
+              },
+              {
+                "id": "left",
+                "title": {
+                  "en": "Left",
+                  "ko": "좌측"
+                }
+              },
+              {
+                "id": "right",
+                "title": {
+                  "en": "Right",
+                  "ko": "우측"
+                }
+              }
+            ]
+          },
+          {
+            "type": "range",
+            "name": "temperature",
+            "min": 20,
+            "max": 45,
+            "step": 0.5,
+            "value": 35,
+            "label": "°C",
+            "labelDecimals": 1
+          }
+        ],
+        "id": "mate_set_temperature"
       }
     ]
   },

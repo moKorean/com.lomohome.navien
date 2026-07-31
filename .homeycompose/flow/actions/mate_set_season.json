@@ -1,0 +1,11 @@
+{
+  "title": { "en": "Set season (heating/cooling)", "ko": "계절 설정 (난방/냉방)" },
+  "titleFormatted": { "en": "Set the mat to [[season]]", "ko": "매트를 [[season]]으로 설정" },
+  "args": [
+    { "type": "device", "name": "device", "filter": "driver_id=mate" },
+    { "type": "dropdown", "name": "season", "values": [
+      { "id": "0", "title": { "en": "Heating", "ko": "난방" } },
+      { "id": "2", "title": { "en": "Cooling", "ko": "냉방" } }
+    ] }
+  ]
+}

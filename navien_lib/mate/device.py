@@ -16,14 +16,11 @@ from navien_lib.const import (
     POLL_INTERVAL_S,
     SERVICE_MATE,
     SETTING_HOME_SEQ,
-    SETTING_PASSWORD,
-    SETTING_USERNAME,
     STORE_DEVICE_ID,
     STORE_DEVICE_SEQ,
     STORE_MODEL_CODE,
     ZONE_SINGLE,
 )
-from navien_lib.navien.api import NavienApi
 from navien_lib.navien.mate import MateDevice, extract_mate_reported
 from navien_lib.navien.mqtt import NavienMqtt
 
@@ -42,11 +39,8 @@ class MateDevice_(device.Device):
         self._model_code = int(store.get(STORE_MODEL_CODE) or 0)
         self._language = await compat.ui_language(self.homey)
         self._home_seq = int(await compat.setting_get(self.homey, SETTING_HOME_SEQ) or 0)
-        self._api = NavienApi(
-            username=await compat.setting_get(self.homey, SETTING_USERNAME),
-            password=await compat.setting_get(self.homey, SETTING_PASSWORD),
-            log=self.log,
-        )
+        # Shared app-wide session (one per account); acquired in _run.
+        self._api = None
         self._mat = None
         self._mqtt = None
         self._tasks: set = set()
@@ -79,13 +73,7 @@ class MateDevice_(device.Device):
     # --- lifecycle ---------------------------------------------------------
 
     async def _run(self) -> None:
-        try:
-            await self._api.login()
-        except Exception as exc:
-            self.log(f"login failed: {exc}")
-            await self._safe_unavailable("로그인에 실패했습니다. 앱 설정에서 계정을 확인하세요.")
-            return
-
+        await self._acquire_api()
         await self._refresh_model()
         await self._start_mqtt()
         await self._request_initial()
@@ -168,6 +156,20 @@ class MateDevice_(device.Device):
         self._mat.apply_reported(reported)
         self._spawn(self._apply_state())
 
+    async def _acquire_api(self) -> None:
+        """Get the app-wide shared Navien session, retrying rather than giving up
+        (one session per account — see the AirOne device for the rationale)."""
+        delay = 5
+        while True:
+            try:
+                self._api = await compat.shared_api(self.homey)
+                return
+            except Exception as exc:
+                self.log(f"login pending ({exc}); retrying in {delay}s")
+                await self._safe_unavailable("나비엔 서버 로그인 재시도 중…")
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, 120)
+
     # --- control -----------------------------------------------------------
 
     async def _on_set_power(self, value, opts=None):
@@ -185,6 +187,42 @@ class MateDevice_(device.Device):
 
     async def _on_set_season(self, value, opts=None):
         await self._mate(self._mat.desired_season(int(value)))
+
+    # --- flow-card entry points -------------------------------------------
+
+    def _require_zone(self, zone: str) -> None:
+        if self._mat is None:
+            raise Exception("기기 정보를 아직 불러오지 못했습니다.")
+        if zone not in self._mat.zones:
+            raise Exception("이 매트에는 해당 구역이 없습니다.")
+
+    async def flow_set_power(self, on: bool) -> None:
+        await self._on_set_power(on)
+
+    async def flow_set_season(self, season: int) -> None:
+        if self._mat is None or not self._mat.is_four_season:
+            raise Exception("사계절 매트가 아니라 계절을 바꿀 수 없습니다.")
+        await self._on_set_season(season)
+
+    async def flow_set_temperature(self, zone: str, value) -> None:
+        hc = self._mat.heat_control if self._mat else None
+        if not (hc and hc.is_celsius):
+            raise Exception("온도(℃)로 조절하는 매트가 아닙니다.")
+        self._require_zone(zone)
+        await self._mate(self._mat.desired_temperature(zone, value))
+
+    async def flow_set_level(self, zone: str, value) -> None:
+        hc = self._mat.heat_control if self._mat else None
+        if not (hc and hc.is_level):
+            raise Exception("단계로 조절하는 매트가 아닙니다.")
+        self._require_zone(zone)
+        await self._mate(self._mat.desired_level(zone, value))
+
+    def flow_is_on(self) -> bool:
+        return bool(self._mat and self._mat.is_on)
+
+    def flow_season(self):
+        return None if self._mat is None else self._mat.season
 
     async def _mate(self, desired):
         if self._mat is None:

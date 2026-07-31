@@ -1,0 +1,13 @@
+{
+  "title": { "en": "Set heat level", "ko": "난방 단계 설정" },
+  "titleFormatted": { "en": "Set [[zone]] heat level to [[level]]", "ko": "[[zone]] 난방 단계를 [[level]](으)로 설정" },
+  "args": [
+    { "type": "device", "name": "device", "filter": "driver_id=mate" },
+    { "type": "dropdown", "name": "zone", "values": [
+      { "id": "single", "title": { "en": "Single", "ko": "단일" } },
+      { "id": "left", "title": { "en": "Left", "ko": "좌측" } },
+      { "id": "right", "title": { "en": "Right", "ko": "우측" } }
+    ] },
+    { "type": "range", "name": "level", "min": 0, "max": 9, "step": 1, "value": 5, "labelDecimals": 0 }
+  ]
+}

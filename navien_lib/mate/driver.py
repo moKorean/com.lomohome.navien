@@ -8,7 +8,7 @@ payload, so the device is created with exactly the capabilities that unit suppor
 
 from homey import driver
 
-from navien_lib import pairing
+from navien_lib import compat, pairing
 from navien_lib.const import (
     STORE_DEVICE_ID,
     STORE_DEVICE_SEQ,
@@ -22,6 +22,35 @@ class MateDriver(driver.Driver):
 
     async def on_init(self) -> None:
         self.log("Navien Mat driver init")
+        self._register_flow_cards()
+
+    def _register_flow_cards(self) -> None:
+        """Wire the sleep-mat Flow condition/action cards to the device methods.
+
+        Run listeners take (args, state) plus extra keywords (e.g. `manual`), so each
+        handler accepts **kwargs. Failures here must not abort driver init.
+        """
+        try:
+            self._bind("condition", "mate_power_is",
+                       lambda a, s=None, **_: a["device"].flow_is_on())
+            self._bind("condition", "mate_season_is",
+                       lambda a, s=None, **_: a["device"].flow_season() == int(a["season"]))
+            self._bind("action", "mate_set_power",
+                       lambda a, s=None, **_: a["device"].flow_set_power(a["power"] == "on"))
+            self._bind("action", "mate_set_season",
+                       lambda a, s=None, **_: a["device"].flow_set_season(int(a["season"])))
+            self._bind("action", "mate_set_temperature",
+                       lambda a, s=None, **_: a["device"].flow_set_temperature(
+                           a["zone"], float(a["temperature"])))
+            self._bind("action", "mate_set_level",
+                       lambda a, s=None, **_: a["device"].flow_set_level(
+                           a["zone"], int(a["level"])))
+        except Exception as exc:
+            self.log(f"flow card registration failed: {exc}")
+
+    def _bind(self, kind: str, card_id: str, handler) -> None:
+        card = compat.flow_card(self.homey, kind, card_id)
+        compat.register_run_listener(card, handler)
 
     async def on_pair(self, session) -> None:
         pairing.install(self, session, self._build_devices)
