@@ -26,5 +26,9 @@
   "0.5.4": {
     "en": "Fixes the AirOne Flow cards (set/check operating mode, fan speed, power, humidity), which errored out when triggered from a Flow.",
     "ko": "플로우에서 실행하면 오류가 나던 에어원 플로우 카드(운전 모드·풍량·전원·희망습도 설정/조건)를 고쳤습니다."
+  },
+  "0.5.5": {
+    "en": "Operating mode is now the first control on the AirOne card, ahead of fan speed and desired humidity.",
+    "ko": "에어원 카드에서 운전 모드가 풍량·희망 습도보다 앞에 먼저 오도록 순서를 바꿨습니다."
   }
 }
