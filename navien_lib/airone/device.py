@@ -15,14 +15,14 @@ from homey import device
 
 from navien_lib import compat
 from navien_lib.const import (
-    AIR_VOLUME_NAMES,
     AIRONE_CMD_CHANGE_MODE,
     AIRONE_CMD_POWER,
     AIRONE_CMD_STATUS,
     AIRONE_READBACK_DELAY_S,
     HUMIDITY_STEP,
-    MODE_NAMES,
-    OPTION_NAMES,
+    OPTION_SAVER,
+    OPTION_SLEEP,
+    OPTION_TURBO,
     POLL_INTERVAL_S,
     SETTING_HOME_SEQ,
     SETTING_PASSWORD,
@@ -48,6 +48,30 @@ _SENSOR_KINDS = {
     "navien_tvoc": "tvoc",
     "navien_radon": "radon",
 }
+
+# The mode/fan pickers fold "option" (수면/터보/절전) into the two lists, so a single
+# picker value maps to either a mode/airVolume or an option. Ids: mode "m{mode}" +
+# "sleep"; fan "v{airVolume}" + "o{option}". Kept in sync with the capability JSONs.
+_MODE_IDS = {"m12", "m10", "m4", "m9", "m8", "m6", "sleep", "m17"}
+_FAN_IDS = {"v4", "o3", "v1", "v3", "o2"}
+
+
+def _mode_id(u) -> str | None:
+    """Current mode as a picker id — 수면 option wins over the underlying mode."""
+    if u.option == OPTION_SLEEP:
+        return "sleep"
+    if u.mode is None:
+        return None
+    return f"m{u.mode}"
+
+
+def _fan_id(u) -> str | None:
+    """Current fan as a picker id — 절전/터보 option wins over the raw airVolume."""
+    if u.option in (OPTION_TURBO, OPTION_SAVER):
+        return f"o{u.option}"
+    if u.air_volume is None:
+        return None
+    return f"v{u.air_volume}"
 
 
 class AironeDevice_(device.Device):
@@ -83,13 +107,11 @@ class AironeDevice_(device.Device):
             ("onoff", self._on_set_power),
             ("navien_airone_mode", self._on_set_mode),
             ("navien_airone_fan", self._on_set_fan),
-            ("navien_airone_option", self._on_set_option),
             ("navien_target_humidity", self._on_set_humidity),
         ):
             if capability in self.get_capabilities():
                 self.register_capability_listener(capability, listener)
         self._humidity_range = None
-        self._enum_cache: dict = {}
 
         self.log(f"{self.get_name()} init (seq={self._device_seq}, phys={self._physical_id})")
         self._poll_task = asyncio.create_task(self._run())
@@ -183,11 +205,9 @@ class AironeDevice_(device.Device):
                 # so a device paired before the model-code fix corrects itself.
                 if unit.model_code:
                     self._model_code = unit.model_code
-                # `unit.reported` still carries the server's mode metadata (a list),
-                # which the MQTT state later overwrites with the current mode (an int),
-                # so read the metadata-derived options here before merging.
+                # `unit.reported` still carries the server's humidity metadata (a list),
+                # which the MQTT state later overwrites, so read the range before merging.
                 await self._sync_humidity_range(unit.humidity_range())
-                await self._sync_enum_options(unit)
                 self._unit.apply_reported(unit.reported)
                 break
 
@@ -226,44 +246,48 @@ class AironeDevice_(device.Device):
         self._schedule_readback()
 
     async def _on_set_mode(self, value, opts=None):
-        await self._airone(AIRONE_CMD_CHANGE_MODE, desired=self._unit.desired_mode(int(value)))
+        # "m{mode}" picks a mode; "sleep" applies the sleep option to the current mode.
+        v = str(value)
+        if v == "sleep":
+            desired = self._unit.desired_option(OPTION_SLEEP)
+        else:
+            desired = self._unit.desired_mode(int(v[1:]))
+        await self._airone(AIRONE_CMD_CHANGE_MODE, desired=desired)
         self._schedule_readback()
 
     async def _on_set_fan(self, value, opts=None):
-        await self._airone(AIRONE_CMD_CHANGE_MODE, desired=self._unit.desired_fan(int(value)))
+        # "v{airVolume}" picks a fan speed; "o{option}" picks turbo/saver.
+        v = str(value)
+        if v.startswith("o"):
+            desired = self._unit.desired_option(int(v[1:]))
+        else:
+            desired = self._unit.desired_fan(int(v[1:]))
+        await self._airone(AIRONE_CMD_CHANGE_MODE, desired=desired)
         self._schedule_readback()
 
     async def _on_set_humidity(self, value, opts=None):
         await self._airone(AIRONE_CMD_CHANGE_MODE, desired=self._unit.desired_humidity(int(value)))
         self._schedule_readback()
 
-    async def _on_set_option(self, value, opts=None):
-        await self._airone(AIRONE_CMD_CHANGE_MODE, desired=self._unit.desired_option(int(value)))
-        self._schedule_readback()
+    # --- flow-card entry points -------------------------------------------
 
-    async def _sync_enum_options(self, unit) -> None:
-        """Narrow the mode/fan/option pickers to what the server says the unit supports.
+    async def flow_set_mode(self, mode_id: str) -> None:
+        await self._on_set_mode(mode_id)
 
-        Values come from `roomController.mode` metadata (present only in the device
-        list). If the runtime doesn't accept a values override the static full list
-        stays, which is a fine fallback.
-        """
-        plan = (
-            ("navien_airone_mode", unit.available_modes(), MODE_NAMES),
-            ("navien_airone_fan", unit.available_air_volumes(), AIR_VOLUME_NAMES),
-            ("navien_airone_option", unit.available_options(), OPTION_NAMES),
-        )
-        for cap, ids, names in plan:
-            if not ids or cap not in self.get_capabilities():
-                continue
-            if self._enum_cache.get(cap) == ids:
-                continue
-            self._enum_cache[cap] = ids
-            values = [{"id": str(i), "title": names.get(i, {"en": str(i)})} for i in ids]
-            try:
-                await self.set_capability_options(cap, {"values": values})
-            except Exception as exc:
-                self.log(f"narrow {cap} failed: {exc}")
+    async def flow_set_fan(self, fan_id: str) -> None:
+        await self._on_set_fan(fan_id)
+
+    async def flow_set_power(self, on: bool) -> None:
+        await self._on_set_power(on)
+
+    async def flow_set_humidity(self, value: int) -> None:
+        await self._on_set_humidity(value)
+
+    def flow_mode_id(self):
+        return _mode_id(self._unit)
+
+    def flow_fan_id(self):
+        return _fan_id(self._unit)
 
     async def _sync_humidity_range(self, bounds) -> None:
         """Set the target-humidity slider min/max from the server metadata (once)."""
@@ -307,9 +331,8 @@ class AironeDevice_(device.Device):
         await self._set("onoff", u.is_on)
         await self._set("navien_running_state", u.running_name(self._language))
         await self._set("navien_airone_status", u.status_text(self._language))
-        await self._set("navien_airone_mode", self._enum(u.mode))
-        await self._set("navien_airone_fan", self._enum(u.air_volume))
-        await self._set("navien_airone_option", self._enum(u.option))
+        await self._set_choice("navien_airone_mode", _mode_id(u), _MODE_IDS)
+        await self._set_choice("navien_airone_fan", _fan_id(u), _FAN_IDS)
         await self._set("navien_target_humidity", u.target_humidity)
         for capability, kind in _SENSOR_KINDS.items():
             reading = u.air_sensors.get(kind) or {}
@@ -330,9 +353,12 @@ class AironeDevice_(device.Device):
         except Exception as exc:
             self.log(f"set {capability} failed: {exc}")
 
-    @staticmethod
-    def _enum(value):
-        return None if value is None else str(value)
+    async def _set_choice(self, capability: str, value, valid: set) -> None:
+        """Set an enum picker only when the value is one the picker offers; an
+        unknown id would make Homey reject the whole capability update."""
+        if value not in valid:
+            return
+        await self._set(capability, value)
 
     @staticmethod
     def _num(value):

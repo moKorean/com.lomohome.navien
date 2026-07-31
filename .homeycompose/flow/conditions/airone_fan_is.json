@@ -1,0 +1,25 @@
+{
+  "title": { "en": "Fan speed !{{is|is not}}", "ko": "풍량이 !{{인가|아닌가}}" },
+  "titleFormatted": {
+    "en": "Fan speed !{{is|is not}} [[fan]]",
+    "ko": "풍량이 [[fan]]!{{인가|아닌가}}"
+  },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "driver_id=airone"
+    },
+    {
+      "type": "dropdown",
+      "name": "fan",
+      "values": [
+        { "id": "v4", "title": { "en": "Auto", "ko": "자동" } },
+        { "id": "o3", "title": { "en": "Saver", "ko": "절전" } },
+        { "id": "v1", "title": { "en": "Low", "ko": "미풍" } },
+        { "id": "v3", "title": { "en": "High", "ko": "강풍" } },
+        { "id": "o2", "title": { "en": "Turbo", "ko": "터보" } }
+      ]
+    }
+  ]
+}

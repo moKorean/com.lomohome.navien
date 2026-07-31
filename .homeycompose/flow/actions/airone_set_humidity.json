@@ -1,0 +1,24 @@
+{
+  "title": { "en": "Set target humidity", "ko": "목표 습도 설정" },
+  "titleFormatted": {
+    "en": "Set target humidity to [[humidity]]%",
+    "ko": "목표 습도를 [[humidity]]%로 설정"
+  },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "driver_id=airone"
+    },
+    {
+      "type": "range",
+      "name": "humidity",
+      "min": 40,
+      "max": 70,
+      "step": 5,
+      "value": 55,
+      "label": "%",
+      "labelDecimals": 0
+    }
+  ]
+}

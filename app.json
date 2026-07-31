@@ -96,6 +96,356 @@
     "url": "https://github.com/moKorean/com.lomohome.navien/issues"
   },
   "source": "https://github.com/moKorean/com.lomohome.navien",
+  "flow": {
+    "conditions": [
+      {
+        "title": {
+          "en": "Fan speed !{{is|is not}}",
+          "ko": "풍량이 !{{인가|아닌가}}"
+        },
+        "titleFormatted": {
+          "en": "Fan speed !{{is|is not}} [[fan]]",
+          "ko": "풍량이 [[fan]]!{{인가|아닌가}}"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=airone"
+          },
+          {
+            "type": "dropdown",
+            "name": "fan",
+            "values": [
+              {
+                "id": "v4",
+                "title": {
+                  "en": "Auto",
+                  "ko": "자동"
+                }
+              },
+              {
+                "id": "o3",
+                "title": {
+                  "en": "Saver",
+                  "ko": "절전"
+                }
+              },
+              {
+                "id": "v1",
+                "title": {
+                  "en": "Low",
+                  "ko": "미풍"
+                }
+              },
+              {
+                "id": "v3",
+                "title": {
+                  "en": "High",
+                  "ko": "강풍"
+                }
+              },
+              {
+                "id": "o2",
+                "title": {
+                  "en": "Turbo",
+                  "ko": "터보"
+                }
+              }
+            ]
+          }
+        ],
+        "id": "airone_fan_is"
+      },
+      {
+        "title": {
+          "en": "Operating mode !{{is|is not}}",
+          "ko": "운전 모드가 !{{인가|아닌가}}"
+        },
+        "titleFormatted": {
+          "en": "Operating mode !{{is|is not}} [[mode]]",
+          "ko": "운전 모드가 [[mode]]!{{인가|아닌가}}"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=airone"
+          },
+          {
+            "type": "dropdown",
+            "name": "mode",
+            "values": [
+              {
+                "id": "m12",
+                "title": {
+                  "en": "Auto",
+                  "ko": "자동"
+                }
+              },
+              {
+                "id": "m10",
+                "title": {
+                  "en": "Ventilate + Dehumidify",
+                  "ko": "환기제습"
+                }
+              },
+              {
+                "id": "m4",
+                "title": {
+                  "en": "Ventilate",
+                  "ko": "환기"
+                }
+              },
+              {
+                "id": "m9",
+                "title": {
+                  "en": "Dehumidify",
+                  "ko": "제습"
+                }
+              },
+              {
+                "id": "m8",
+                "title": {
+                  "en": "Purify",
+                  "ko": "청정"
+                }
+              },
+              {
+                "id": "m6",
+                "title": {
+                  "en": "Cooking",
+                  "ko": "요리"
+                }
+              },
+              {
+                "id": "sleep",
+                "title": {
+                  "en": "Sleep",
+                  "ko": "수면"
+                }
+              },
+              {
+                "id": "m17",
+                "title": {
+                  "en": "Bypass",
+                  "ko": "바이패스"
+                }
+              }
+            ]
+          }
+        ],
+        "id": "airone_mode_is"
+      }
+    ],
+    "actions": [
+      {
+        "title": {
+          "en": "Set fan speed",
+          "ko": "풍량 설정"
+        },
+        "titleFormatted": {
+          "en": "Set fan speed to [[fan]]",
+          "ko": "풍량을 [[fan]](으)로 설정"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=airone"
+          },
+          {
+            "type": "dropdown",
+            "name": "fan",
+            "values": [
+              {
+                "id": "v4",
+                "title": {
+                  "en": "Auto",
+                  "ko": "자동"
+                }
+              },
+              {
+                "id": "o3",
+                "title": {
+                  "en": "Saver",
+                  "ko": "절전"
+                }
+              },
+              {
+                "id": "v1",
+                "title": {
+                  "en": "Low",
+                  "ko": "미풍"
+                }
+              },
+              {
+                "id": "v3",
+                "title": {
+                  "en": "High",
+                  "ko": "강풍"
+                }
+              },
+              {
+                "id": "o2",
+                "title": {
+                  "en": "Turbo",
+                  "ko": "터보"
+                }
+              }
+            ]
+          }
+        ],
+        "id": "airone_set_fan"
+      },
+      {
+        "title": {
+          "en": "Set target humidity",
+          "ko": "목표 습도 설정"
+        },
+        "titleFormatted": {
+          "en": "Set target humidity to [[humidity]]%",
+          "ko": "목표 습도를 [[humidity]]%로 설정"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=airone"
+          },
+          {
+            "type": "range",
+            "name": "humidity",
+            "min": 40,
+            "max": 70,
+            "step": 5,
+            "value": 55,
+            "label": "%",
+            "labelDecimals": 0
+          }
+        ],
+        "id": "airone_set_humidity"
+      },
+      {
+        "title": {
+          "en": "Set operating mode",
+          "ko": "운전 모드 설정"
+        },
+        "titleFormatted": {
+          "en": "Set operating mode to [[mode]]",
+          "ko": "운전 모드를 [[mode]](으)로 설정"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=airone"
+          },
+          {
+            "type": "dropdown",
+            "name": "mode",
+            "values": [
+              {
+                "id": "m12",
+                "title": {
+                  "en": "Auto",
+                  "ko": "자동"
+                }
+              },
+              {
+                "id": "m10",
+                "title": {
+                  "en": "Ventilate + Dehumidify",
+                  "ko": "환기제습"
+                }
+              },
+              {
+                "id": "m4",
+                "title": {
+                  "en": "Ventilate",
+                  "ko": "환기"
+                }
+              },
+              {
+                "id": "m9",
+                "title": {
+                  "en": "Dehumidify",
+                  "ko": "제습"
+                }
+              },
+              {
+                "id": "m8",
+                "title": {
+                  "en": "Purify",
+                  "ko": "청정"
+                }
+              },
+              {
+                "id": "m6",
+                "title": {
+                  "en": "Cooking",
+                  "ko": "요리"
+                }
+              },
+              {
+                "id": "sleep",
+                "title": {
+                  "en": "Sleep",
+                  "ko": "수면"
+                }
+              },
+              {
+                "id": "m17",
+                "title": {
+                  "en": "Bypass",
+                  "ko": "바이패스"
+                }
+              }
+            ]
+          }
+        ],
+        "id": "airone_set_mode"
+      },
+      {
+        "title": {
+          "en": "Set power",
+          "ko": "전원 설정"
+        },
+        "titleFormatted": {
+          "en": "Turn the appliance [[power]]",
+          "ko": "전원을 [[power]]"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=airone"
+          },
+          {
+            "type": "dropdown",
+            "name": "power",
+            "values": [
+              {
+                "id": "on",
+                "title": {
+                  "en": "On",
+                  "ko": "켬"
+                }
+              },
+              {
+                "id": "off",
+                "title": {
+                  "en": "Off",
+                  "ko": "끔"
+                }
+              }
+            ]
+          }
+        ],
+        "id": "airone_set_power"
+      }
+    ]
+  },
   "drivers": [
     {
       "name": {
@@ -181,7 +531,6 @@
         "onoff",
         "navien_airone_mode",
         "navien_airone_fan",
-        "navien_airone_option",
         "navien_target_humidity",
         "navien_running_state",
         "navien_airone_status",
@@ -345,31 +694,38 @@
       "icon": "/assets/capabilities/mdi-fan.svg",
       "values": [
         {
-          "id": "1",
+          "id": "v4",
+          "title": {
+            "en": "Auto",
+            "ko": "자동"
+          }
+        },
+        {
+          "id": "o3",
+          "title": {
+            "en": "Saver",
+            "ko": "절전"
+          }
+        },
+        {
+          "id": "v1",
           "title": {
             "en": "Low",
             "ko": "미풍"
           }
         },
         {
-          "id": "2",
-          "title": {
-            "en": "Medium",
-            "ko": "약풍"
-          }
-        },
-        {
-          "id": "3",
+          "id": "v3",
           "title": {
             "en": "High",
             "ko": "강풍"
           }
         },
         {
-          "id": "4",
+          "id": "o2",
           "title": {
-            "en": "Auto",
-            "ko": "자동"
+            "en": "Turbo",
+            "ko": "터보"
           }
         }
       ]
@@ -386,114 +742,59 @@
       "icon": "/assets/capabilities/mdi-air-purifier.svg",
       "values": [
         {
-          "id": "4",
+          "id": "m12",
           "title": {
-            "en": "Ventilate",
-            "ko": "환기"
+            "en": "Auto",
+            "ko": "자동"
           }
         },
         {
-          "id": "5",
-          "title": {
-            "en": "Exhaust",
-            "ko": "배기"
-          }
-        },
-        {
-          "id": "6",
-          "title": {
-            "en": "Cooking",
-            "ko": "요리"
-          }
-        },
-        {
-          "id": "8",
-          "title": {
-            "en": "Purify",
-            "ko": "청정"
-          }
-        },
-        {
-          "id": "9",
-          "title": {
-            "en": "Dehumidify",
-            "ko": "제습"
-          }
-        },
-        {
-          "id": "10",
+          "id": "m10",
           "title": {
             "en": "Ventilate + Dehumidify",
             "ko": "환기제습"
           }
         },
         {
-          "id": "12",
+          "id": "m4",
           "title": {
-            "en": "Auto",
-            "ko": "자동운전"
+            "en": "Ventilate",
+            "ko": "환기"
           }
         },
         {
-          "id": "15",
+          "id": "m9",
           "title": {
-            "en": "Ventilate (outdoor)",
-            "ko": "환기(외기)"
+            "en": "Dehumidify",
+            "ko": "제습"
           }
         },
         {
-          "id": "17",
+          "id": "m8",
+          "title": {
+            "en": "Purify",
+            "ko": "청정"
+          }
+        },
+        {
+          "id": "m6",
+          "title": {
+            "en": "Cooking",
+            "ko": "요리"
+          }
+        },
+        {
+          "id": "sleep",
+          "title": {
+            "en": "Sleep",
+            "ko": "수면"
+          }
+        },
+        {
+          "id": "m17",
           "title": {
             "en": "Bypass",
             "ko": "바이패스"
-          }
-        },
-        {
-          "id": "18",
-          "title": {
-            "en": "Negative-pressure",
-            "ko": "음압환기"
-          }
-        }
-      ]
-    },
-    "navien_airone_option": {
-      "type": "enum",
-      "title": {
-        "en": "Option",
-        "ko": "옵션"
-      },
-      "getable": true,
-      "setable": true,
-      "uiComponent": "picker",
-      "icon": "/assets/capabilities/mdi-cog-outline.svg",
-      "values": [
-        {
-          "id": "1",
-          "title": {
-            "en": "Normal",
-            "ko": "옵션 없음"
-          }
-        },
-        {
-          "id": "2",
-          "title": {
-            "en": "Turbo",
-            "ko": "터보"
-          }
-        },
-        {
-          "id": "3",
-          "title": {
-            "en": "Saver",
-            "ko": "절전"
-          }
-        },
-        {
-          "id": "4",
-          "title": {
-            "en": "Sleep",
-            "ko": "숙면"
           }
         }
       ]

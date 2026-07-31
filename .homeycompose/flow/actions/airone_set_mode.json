@@ -1,0 +1,28 @@
+{
+  "title": { "en": "Set operating mode", "ko": "운전 모드 설정" },
+  "titleFormatted": {
+    "en": "Set operating mode to [[mode]]",
+    "ko": "운전 모드를 [[mode]](으)로 설정"
+  },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "driver_id=airone"
+    },
+    {
+      "type": "dropdown",
+      "name": "mode",
+      "values": [
+        { "id": "m12", "title": { "en": "Auto", "ko": "자동" } },
+        { "id": "m10", "title": { "en": "Ventilate + Dehumidify", "ko": "환기제습" } },
+        { "id": "m4", "title": { "en": "Ventilate", "ko": "환기" } },
+        { "id": "m9", "title": { "en": "Dehumidify", "ko": "제습" } },
+        { "id": "m8", "title": { "en": "Purify", "ko": "청정" } },
+        { "id": "m6", "title": { "en": "Cooking", "ko": "요리" } },
+        { "id": "sleep", "title": { "en": "Sleep", "ko": "수면" } },
+        { "id": "m17", "title": { "en": "Bypass", "ko": "바이패스" } }
+      ]
+    }
+  ]
+}

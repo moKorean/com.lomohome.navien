@@ -330,12 +330,14 @@ class AironeDevice:
             room["additionalData"] = {"type": HUMIDITY_TYPE, "value": hum}
         return {"roomController": room}
 
-    def desired_mode(self, mode: int, option: int | None = None) -> dict:
-        opt = option if option is not None else (self.option or OPTION_NONE)
-        return self._change_mode(mode, opt, self.air_volume, int(mode))
+    def desired_mode(self, mode: int, option: int = OPTION_NONE) -> dict:
+        # Picking a mode resets the option to normal; sleep/turbo/saver are chosen
+        # separately (sleep via the mode list, turbo/saver via the fan list).
+        return self._change_mode(mode, option, self.air_volume, int(mode))
 
     def desired_fan(self, air_volume: int) -> dict:
-        return self._change_mode(self.mode, self.option or OPTION_NONE, air_volume, self.mode)
+        # Picking an air volume clears turbo/saver (option -> normal).
+        return self._change_mode(self.mode, OPTION_NONE, air_volume, self.mode)
 
     def desired_option(self, option: int) -> dict:
         return self._change_mode(self.mode, option, self.air_volume, self.mode)

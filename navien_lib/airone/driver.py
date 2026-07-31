@@ -7,7 +7,7 @@ only maps the raw device list to AirOne device payloads.
 
 from homey import driver
 
-from navien_lib import pairing
+from navien_lib import compat, pairing
 from navien_lib.const import (
     STORE_DEVICE_ID,
     STORE_DEVICE_SEQ,
@@ -22,6 +22,34 @@ class AironeDriver(driver.Driver):
 
     async def on_init(self) -> None:
         self.log("Navien AirOne driver init")
+        self._register_flow_cards()
+
+    def _register_flow_cards(self) -> None:
+        """Wire the Flow condition/action cards to the device methods.
+
+        Cards are app-global; each carries a `device` arg (filtered to this driver) that
+        resolves to the AironeDevice instance the Flow targets. Failures here must not
+        abort driver init, so the whole block is guarded.
+        """
+        try:
+            self._bind("condition", "airone_mode_is",
+                       lambda a, s: a["device"].flow_mode_id() == a["mode"])
+            self._bind("condition", "airone_fan_is",
+                       lambda a, s: a["device"].flow_fan_id() == a["fan"])
+            self._bind("action", "airone_set_mode",
+                       lambda a, s: a["device"].flow_set_mode(a["mode"]))
+            self._bind("action", "airone_set_fan",
+                       lambda a, s: a["device"].flow_set_fan(a["fan"]))
+            self._bind("action", "airone_set_power",
+                       lambda a, s: a["device"].flow_set_power(a["power"] == "on"))
+            self._bind("action", "airone_set_humidity",
+                       lambda a, s: a["device"].flow_set_humidity(int(a["humidity"])))
+        except Exception as exc:
+            self.log(f"flow card registration failed: {exc}")
+
+    def _bind(self, kind: str, card_id: str, handler) -> None:
+        card = compat.flow_card(self.homey, kind, card_id)
+        compat.register_run_listener(card, handler)
 
     async def on_pair(self, session) -> None:
         pairing.install(self, session, self._build_devices)

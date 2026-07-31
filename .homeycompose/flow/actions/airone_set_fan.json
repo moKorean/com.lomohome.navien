@@ -1,0 +1,25 @@
+{
+  "title": { "en": "Set fan speed", "ko": "풍량 설정" },
+  "titleFormatted": {
+    "en": "Set fan speed to [[fan]]",
+    "ko": "풍량을 [[fan]](으)로 설정"
+  },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "driver_id=airone"
+    },
+    {
+      "type": "dropdown",
+      "name": "fan",
+      "values": [
+        { "id": "v4", "title": { "en": "Auto", "ko": "자동" } },
+        { "id": "o3", "title": { "en": "Saver", "ko": "절전" } },
+        { "id": "v1", "title": { "en": "Low", "ko": "미풍" } },
+        { "id": "v3", "title": { "en": "High", "ko": "강풍" } },
+        { "id": "o2", "title": { "en": "Turbo", "ko": "터보" } }
+      ]
+    }
+  ]
+}

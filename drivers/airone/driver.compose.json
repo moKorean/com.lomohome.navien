@@ -8,7 +8,6 @@
     "onoff",
     "navien_airone_mode",
     "navien_airone_fan",
-    "navien_airone_option",
     "navien_target_humidity",
     "navien_running_state",
     "navien_airone_status",

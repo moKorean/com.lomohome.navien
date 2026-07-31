@@ -1,0 +1,22 @@
+{
+  "title": { "en": "Set power", "ko": "전원 설정" },
+  "titleFormatted": {
+    "en": "Turn the appliance [[power]]",
+    "ko": "전원을 [[power]]"
+  },
+  "args": [
+    {
+      "type": "device",
+      "name": "device",
+      "filter": "driver_id=airone"
+    },
+    {
+      "type": "dropdown",
+      "name": "power",
+      "values": [
+        { "id": "on", "title": { "en": "On", "ko": "켬" } },
+        { "id": "off", "title": { "en": "Off", "ko": "끔" } }
+      ]
+    }
+  ]
+}

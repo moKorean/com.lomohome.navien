@@ -58,6 +58,32 @@ async def language(homey, default: str = "en") -> str:
     return default
 
 
+def flow_card(homey, kind: str, card_id: str):
+    """Fetch a flow card, tolerating either the snake_case or camelCase SDK spelling.
+
+    `kind` is "action" or "condition". As with settings/i18n, the Python surface isn't
+    pinned, so we try both method names rather than betting on one.
+    """
+    getters = {
+        "action": ("get_action_card", "getActionCard"),
+        "condition": ("get_condition_card", "getConditionCard"),
+    }[kind]
+    for name in getters:
+        fn = getattr(homey.flow, name, None)
+        if fn is not None:
+            return fn(card_id)
+    raise AttributeError(f"Homey flow has no {kind}-card getter")
+
+
+def register_run_listener(card, fn) -> None:
+    for name in ("register_run_listener", "registerRunListener"):
+        reg = getattr(card, name, None)
+        if reg is not None:
+            reg(fn)
+            return
+    raise AttributeError("flow card has no run-listener registrar")
+
+
 async def ui_language(homey, default: str = "en") -> str:
     """The language to write user-facing messages in.
 
