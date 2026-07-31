@@ -1,84 +1,74 @@
-# Navien Smart Community (Homey)
+# 나비엔 스마트 커뮤니티 (Homey)
 
-A Homey app that controls Kyungdong **Navien AirOne** (ventilation / dehumidify /
-air-purify) and **Navien sleep mats**. It talks to the same Navien Smart cloud the
-official app uses — REST for control, AWS IoT MQTT for realtime state. This is an
-**unofficial, community-built app and is not affiliated with Navien.**
+경동나비엔 **나비엔 에어원**(환기·제습·청정)과 **숙면매트**를 Homey에서 제어하는 앱입니다.
+공식 나비엔 스마트 앱이 쓰는 서버를 그대로 사용합니다 — 제어는 REST, 실시간 상태는 AWS IoT
+MQTT. 나비엔 **공식 앱이 아닌, 커뮤니티가 만든 비공식 앱입니다.**
 
-> 한국어 README는 [`README.ko.md`](./README.ko.md)를 참고하세요.
+> English README: [`README.en.md`](./README.en.md)
 
-## Credits · License
+## 출처 · 라이선스
 
-This app is a Homey port of the Home Assistant integration **navien_smart_ha**.
+이 앱은 Home Assistant 통합 **navien_smart_ha**를 Homey로 포팅한 것입니다.
 
-- **Original author:** Eui Young Jung
-- **Original project:** https://github.com/ripe-avocado/navien_smart_ha
-- **Original license:** MIT
+- **원작자:** Eui Young Jung
+- **원 프로젝트:** https://github.com/ripe-avocado/navien_smart_ha
+- **원 프로젝트 라이선스:** MIT
 
-The original project is used under the MIT license; the full copyright and permission
-notice is preserved in [`NOTICE`](./NOTICE). All of this app's protocol knowledge (the
-login flow, MQTT transport, and the AirOne/mat value tables) comes from the original
-project. See [`docs/PORTING.md`](./docs/PORTING.md) for the design.
+원 프로젝트는 MIT 라이선스로 사용하며, 원 저작권·허가 고지 전문은 [`NOTICE`](./NOTICE)에
+보존되어 있습니다. 이 앱의 프로토콜 지식(로그인 흐름, MQTT 전송, 에어원·매트 값 표)은 모두 원
+프로젝트에서 비롯되었습니다. 자세한 설계는 [`docs/PORTING.md`](./docs/PORTING.md)를 참고하세요.
 
-The Homey port itself is © 2026 Geunwon Mo.
+Homey 포팅 자체는 © 2026 Geunwon Mo.
 
-## Features
+## 기능
 
-- **AirOne control** — power, operating mode (auto, ventilate, ventilate + dehumidify,
-  dehumidify, purify, cooking, sleep, bypass), fan speed (auto, saver, low, high, turbo),
-  and a server-checked target humidity for the dehumidify modes.
-- **Air-quality sensors** — PM1.0, PM2.5, PM10, CO₂, TVOC, radon, temperature, humidity,
-  an overall air-quality score and filter usage. TVOC and radon also carry a "good / bad"
-  grade label. Every reading is parsed as a number, so it graphs in Homey Insights.
-- **AirMonitor** — paired as its own sensor device.
-- **Sleep mats** — power, per-zone temperature (0.5 °C) and heat level, single/double,
-  seasonal heating/cooling, running/error state and over-temperature warning.
-- **Homey Flow** — any reading can be a condition; operating mode, fan speed, power and
-  target humidity are actions.
-- **Mode-aware guidance** — a setting that doesn't apply to the current mode (e.g. humidity
-  in Auto) is rejected with a toast that explains why, and the control reverts.
-- **Account login** — sign in from the app settings or during device pairing; credentials
-  are saved either way. Multi-home selection and password-change repair are supported.
+- **에어원 제어** — 전원, 운전 모드(자동·환기·환기제습·제습·청정·요리·수면·바이패스),
+  풍량(자동·절전·미풍·강풍·터보), 희망 습도(제습 모드, 서버 범위로 검증).
+- **공기질 센서** — 극초미세먼지(PM1.0)·초미세먼지(PM2.5)·미세먼지(PM10)·CO₂·TVOC(ppb)·라돈·
+  온습도·종합 공기질 점수·필터 사용률. TVOC·라돈은 "좋음/나쁨" 등급 라벨도 함께 표시.
+  수치는 모두 숫자로 파싱되어 Insights 그래프로 남습니다.
+- **에어모니터** — 페어링 시 별도 센서 기기로 등록.
+- **숙면매트** — 전원, 구역별 온도(0.5℃)·단계, 싱글·더블, 사계절 난방/냉방, 운전·오류 상태,
+  고온 경고.
+- **플로우(Flow)** — 읽는 값은 조건 카드로, 운전 모드·풍량·전원·희망 습도는 동작 카드로.
+- **모드별 조작 안내** — 현재 모드에서 지원하지 않는 조작(예: 제습이 아닌 모드에서의 습도 조절)은
+  조용히 실패하지 않고 안내 문구(토스트)를 띄우고 값을 되돌립니다.
+- **계정 세션 공유** — 계정의 모든 기기가 세션 하나를 공유합니다(나비엔은 계정당 세션 1개만 허용).
+  앱 설정에서 한 번 로그인하면 되고, 비밀번호 변경 시 복구(repair)도 지원합니다.
 
-## Support
+## 지원 범위
 
-| Device | Status |
+| 기기 | 상태 |
 | --- | --- |
-| AirOne — power, mode, fan, target humidity | Supported (control verified on real hardware) |
-| AirOne — air quality (PM, CO₂, TVOC, radon, temp/humidity, grade, filter, error) | Supported |
-| AirOne — mode/fan/option narrowed to server-supported values | Supported |
-| AirMonitor — separate device, air-quality sensors | Supported |
-| Sleep mat — power, per-zone temperature/level, heating/cooling, state | Supported (hardware-verified in the original project) |
-| Boiler · wall pad | Out of scope |
+| 에어원 — 전원·운전 모드·풍량·희망 습도 | 지원 (실기기 제어 확인) |
+| 에어원 — 공기질(PM·CO₂·TVOC·라돈·온습도·종합등급·필터·오류) | 지원 |
+| 에어모니터 — 별도 기기, 공기질 센서 | 지원 |
+| 숙면매트 — 전원·구역별 온도·단계, 난방/냉방, 상태 | 지원 (원 프로젝트에서 실기기 검증) |
+| 보일러 · 월패드 | 범위 밖 |
 
-> **Compatibility.** Only newer AirOne units (`modelCode ≥ 1000`) are supported. Older
-> units use a completely different command envelope and topic scheme and cannot be reached
-> this way.
+> **호환.** 에어원은 신형(`modelCode ≥ 1000`)만 지원합니다. 구형은 명령 봉투·토픽 규약이
+> 완전히 달라 이 방식으로는 연결할 수 없습니다.
 
-## Setup
+## 설정
 
-1. Install the app on your Homey.
-2. Open the **app settings** and sign in with your **Navien Smart** account.
-   (Note: Navien allows only one session per account, so opening the phone app may briefly
-   log the Homey app out — it re-logs-in automatically.)
-3. Add a device → **Navien AirOne / AirMonitor / Sleep mat** → pick it from the account's
-   device list.
-   - If an account is already saved, the login screen is skipped.
-   - If you didn't sign in from the app settings, logging in during pairing saves the
-     credentials too.
-4. If you change your password, sign in again from the device's **repair** flow.
+1. Homey에 앱을 설치합니다.
+2. **앱 설정**을 열고 **나비엔 스마트** 계정 아이디/비밀번호로 로그인합니다.
+   (참고: 나비엔은 계정당 세션 1개만 허용해서, 휴대폰 앱을 열면 앱이 잠깐 로그아웃될 수
+   있습니다 — 자동으로 다시 로그인합니다.)
+3. 기기 추가 → **나비엔 에어원 / 에어모니터 / 숙면매트** → 계정의 기기 목록에서 선택합니다.
+   저장된 계정이 없으면 먼저 앱 설정에서 로그인하세요.
+4. 비밀번호를 바꿨다면 기기의 **복구(repair)**에서 다시 로그인할 수 있습니다.
 
-## Build
+## 빌드
 
-A Homey **Python runtime** app (SDK 3). Its only runtime dependencies are `paho-mqtt` and
-`certifi`, declared in `app.json`'s `pythonPackages`.
+Homey **Python 런타임** 앱(SDK 3)입니다. 런타임 의존성은 `app.json`의 `pythonPackages`에
+선언된 `paho-mqtt`, `certifi`뿐입니다.
 
 ```sh
-homey app build     # compose .homeycompose/* into app.json and build python_packages
-homey app install   # build and install to the connected Homey
-homey app run        # dev mode with live logs (for diagnosing pairing/login)
-python3 -m pytest -q # unit tests for the ported logic (navien_lib/navien/*)
+homey app build     # .homeycompose/* 를 app.json 으로 병합하고 python_packages 빌드
+homey app install   # 빌드 후 연결된 Homey 에 설치
+homey app run       # 개발 모드(실시간 로그) — 페어링/로그인 문제 진단용
+python3 -m pytest -q # 이식 로직 단위 테스트 (navien_lib/navien/*)
 ```
 
-Store and device images and icons are generated from the sources in `docs/` via
-`scripts/make_images.py`.
+스토어·기기 이미지와 아이콘은 `docs/`의 원본에서 `scripts/make_images.py`로 생성합니다.
