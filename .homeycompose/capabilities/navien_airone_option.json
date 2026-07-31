@@ -1,0 +1,14 @@
+{
+  "type": "enum",
+  "title": { "en": "Option", "ko": "옵션" },
+  "getable": true,
+  "setable": true,
+  "uiComponent": "picker",
+  "icon": "/assets/capabilities/mode.svg",
+  "values": [
+    { "id": "1", "title": { "en": "Normal", "ko": "옵션 없음" } },
+    { "id": "2", "title": { "en": "Turbo", "ko": "터보" } },
+    { "id": "3", "title": { "en": "Saver", "ko": "절전" } },
+    { "id": "4", "title": { "en": "Sleep", "ko": "숙면" } }
+  ]
+}

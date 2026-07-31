@@ -8,6 +8,7 @@
     "onoff",
     "navien_airone_mode",
     "navien_airone_fan",
+    "navien_airone_option",
     "navien_target_humidity",
     "navien_running_state",
     "measure_temperature",
@@ -16,9 +17,12 @@
     "measure_co2",
     "navien_pm1",
     "navien_pm10",
+    "navien_tvoc",
+    "navien_radon",
     "navien_air_grade",
     "navien_filter_usage",
-    "navien_error_code"
+    "navien_error_code",
+    "alarm_generic"
   ],
   "platforms": [
     "local"

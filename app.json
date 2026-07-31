@@ -99,6 +99,7 @@
         "onoff",
         "navien_airone_mode",
         "navien_airone_fan",
+        "navien_airone_option",
         "navien_target_humidity",
         "navien_running_state",
         "measure_temperature",
@@ -107,9 +108,12 @@
         "measure_co2",
         "navien_pm1",
         "navien_pm10",
+        "navien_tvoc",
+        "navien_radon",
         "navien_air_grade",
         "navien_filter_usage",
-        "navien_error_code"
+        "navien_error_code",
+        "alarm_generic"
       ],
       "platforms": [
         "local"
@@ -384,6 +388,47 @@
         }
       ]
     },
+    "navien_airone_option": {
+      "type": "enum",
+      "title": {
+        "en": "Option",
+        "ko": "옵션"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "picker",
+      "icon": "/assets/capabilities/mode.svg",
+      "values": [
+        {
+          "id": "1",
+          "title": {
+            "en": "Normal",
+            "ko": "옵션 없음"
+          }
+        },
+        {
+          "id": "2",
+          "title": {
+            "en": "Turbo",
+            "ko": "터보"
+          }
+        },
+        {
+          "id": "3",
+          "title": {
+            "en": "Saver",
+            "ko": "절전"
+          }
+        },
+        {
+          "id": "4",
+          "title": {
+            "en": "Sleep",
+            "ko": "숙면"
+          }
+        }
+      ]
+    },
     "navien_error_code": {
       "type": "number",
       "title": {
@@ -474,6 +519,22 @@
         "ko": "㎍/㎥"
       }
     },
+    "navien_radon": {
+      "type": "number",
+      "title": {
+        "en": "Radon",
+        "ko": "라돈"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/air.svg",
+      "decimals": 0,
+      "units": {
+        "en": "Bq/m³",
+        "ko": "Bq/㎥"
+      }
+    },
     "navien_running_state": {
       "type": "enum",
       "title": {
@@ -553,6 +614,18 @@
         "en": "%",
         "ko": "%"
       }
+    },
+    "navien_tvoc": {
+      "type": "number",
+      "title": {
+        "en": "TVOC",
+        "ko": "휘발성유기화합물 (TVOC)"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/air.svg",
+      "decimals": 0
     }
   }
 }

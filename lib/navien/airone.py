@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from lib.const import (
     AIRONE_SENSOR_ALIASES,
     AIRONE_V2_MIN_MODEL_CODE,
+    HUMIDITY_MAX_FALLBACK,
+    HUMIDITY_MIN_FALLBACK,
     HUMIDITY_TYPE,
     MODES_WITH_HUMIDITY,
     OPTION_NONE,
@@ -248,6 +250,47 @@ class AironeDevice:
             room["airVolume"] = self.air_volume
         room["additionalData"] = {"type": HUMIDITY_TYPE, "value": int(value)}
         return {"roomController": room}
+
+    def desired_option(self, option: int) -> dict:
+        """Set the option (normal/turbo/saver/sleep), keeping mode/volume/humidity."""
+        room = self._room_base()
+        if self.mode is not None:
+            room["mode"] = self.mode
+        room["option"] = int(option)
+        if self.air_volume is not None:
+            room["airVolume"] = self.air_volume
+        hum = self.target_humidity
+        if self.mode in MODES_WITH_HUMIDITY and hum is not None:
+            room["additionalData"] = {"type": HUMIDITY_TYPE, "value": hum}
+        return {"roomController": room}
+
+    # --- server-provided metadata -----------------------------------------
+
+    def humidity_range(self) -> tuple:
+        """(min, max) target humidity from the server's mode metadata.
+
+        The device only ever reports the *current* humidity; the allowed range comes
+        from `roomController.mode[].additionalData` (type == humidity). Widen across all
+        modes that carry one; fall back to a sane default if the server gave none.
+        """
+        low = high = None
+        modes = self._room.get("mode")
+        if isinstance(modes, list):
+            for md in modes:
+                extra = md.get("additionalData") or []
+                if isinstance(extra, dict):
+                    extra = [extra]
+                for ad in extra:
+                    if ad.get("type") != HUMIDITY_TYPE:
+                        continue
+                    lo, hi = ad.get("min"), ad.get("max")
+                    if lo is None or hi is None:
+                        continue
+                    low = lo if low is None else min(low, lo)
+                    high = hi if high is None else max(high, hi)
+        if low is None or high is None:
+            return (HUMIDITY_MIN_FALLBACK, HUMIDITY_MAX_FALLBACK)
+        return (low, high)
 
 
 def parse_air_sensors(sensor_list: list) -> dict:

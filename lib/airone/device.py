@@ -19,6 +19,7 @@ from lib.const import (
     AIRONE_CMD_POWER,
     AIRONE_CMD_STATUS,
     AIRONE_READBACK_DELAY_S,
+    HUMIDITY_STEP,
     POLL_INTERVAL_S,
     SETTING_HOME_SEQ,
     SETTING_PASSWORD,
@@ -41,6 +42,8 @@ _SENSOR_KINDS = {
     "measure_co2": "co2",
     "navien_pm1": "pm1",
     "navien_pm10": "pm10",
+    "navien_tvoc": "tvoc",
+    "navien_radon": "radon",
 }
 
 
@@ -77,10 +80,12 @@ class AironeDevice_(device.Device):
             ("onoff", self._on_set_power),
             ("navien_airone_mode", self._on_set_mode),
             ("navien_airone_fan", self._on_set_fan),
+            ("navien_airone_option", self._on_set_option),
             ("navien_target_humidity", self._on_set_humidity),
         ):
             if capability in self.get_capabilities():
                 self.register_capability_listener(capability, listener)
+        self._humidity_range = None
 
         self.log(f"{self.get_name()} init (seq={self._device_seq}, phys={self._physical_id})")
         self._poll_task = asyncio.create_task(self._run())
@@ -146,6 +151,10 @@ class AironeDevice_(device.Device):
         for raw in await self._api.list_devices(self._home_seq):
             unit = AironeDevice.from_raw(raw, log=self.log)
             if unit and str(unit.device_id) == self._device_id:
+                # `unit.reported` still carries the server's mode metadata (a list),
+                # which the MQTT state later overwrites with the current mode (an int),
+                # so read the humidity range here before merging.
+                await self._sync_humidity_range(unit.humidity_range())
                 self._unit.apply_reported(unit.reported)
                 break
 
@@ -195,6 +204,26 @@ class AironeDevice_(device.Device):
         await self._airone(AIRONE_CMD_CHANGE_MODE, desired=self._unit.desired_humidity(int(value)))
         self._schedule_readback()
 
+    async def _on_set_option(self, value, opts=None):
+        await self._airone(AIRONE_CMD_CHANGE_MODE, desired=self._unit.desired_option(int(value)))
+        self._schedule_readback()
+
+    async def _sync_humidity_range(self, bounds) -> None:
+        """Set the target-humidity slider min/max from the server metadata (once)."""
+        if bounds == self._humidity_range:
+            return
+        if "navien_target_humidity" not in self.get_capabilities():
+            return
+        self._humidity_range = bounds
+        low, high = bounds
+        try:
+            await self.set_capability_options(
+                "navien_target_humidity",
+                {"min": int(low), "max": int(high), "step": HUMIDITY_STEP},
+            )
+        except Exception as exc:
+            self.log(f"humidity range set failed: {exc}")
+
     async def _airone(self, command: str, desired):
         client_id = self._mqtt.client_id if self._mqtt else f"rest-U{self._api.user_seq}"
         return await self._api.airone_command(
@@ -222,6 +251,7 @@ class AironeDevice_(device.Device):
         await self._set("navien_running_state", self._enum(u.running))
         await self._set("navien_airone_mode", self._enum(u.mode))
         await self._set("navien_airone_fan", self._enum(u.air_volume))
+        await self._set("navien_airone_option", self._enum(u.option))
         await self._set("navien_target_humidity", u.target_humidity)
         for capability, kind in _SENSOR_KINDS.items():
             reading = u.air_sensors.get(kind) or {}
@@ -231,6 +261,7 @@ class AironeDevice_(device.Device):
         filters = u.filters
         await self._set("navien_filter_usage", filters[0] if filters else None)
         await self._set("navien_error_code", self._num(u.error_code))
+        await self._set("alarm_generic", u.has_error)
 
     async def _set(self, capability: str, value) -> None:
         if value is None or capability not in self.get_capabilities():

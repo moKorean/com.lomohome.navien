@@ -1,0 +1,10 @@
+{
+  "type": "number",
+  "title": { "en": "Radon", "ko": "라돈" },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/capabilities/air.svg",
+  "decimals": 0,
+  "units": { "en": "Bq/m³", "ko": "Bq/㎥" }
+}

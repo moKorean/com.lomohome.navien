@@ -81,6 +81,29 @@ def test_sigv4_path_shape():
     assert "X-Amz-Signature=" in path and "X-Amz-Security-Token=" in path
 
 
+def test_desired_option_keeps_mode_and_humidity():
+    u = airone.AironeDevice.from_raw(_sample_raw())
+    d = u.desired_option(2)["roomController"]   # turbo
+    assert d["mode"] == 9 and d["option"] == 2 and d["airVolume"] == 2
+    assert d["additionalData"] == {"type": 1, "value": 55}   # humidity carried
+
+
+def test_humidity_range_from_server_metadata():
+    raw = {
+        "serviceCode": 300, "deviceSeq": 5, "deviceId": "A",
+        "Properties": {"modelCode": 1200, "data": {"did": {"reported": {
+            "roomController": {"deviceId": "RC", "mode": [
+                {"name": 9, "additionalData": [{"type": 1, "min": 40, "max": 70}]},
+                {"name": 10, "additionalData": [{"type": 1, "min": 30, "max": 60}]},
+            ]}}}}},
+    }
+    u = airone.AironeDevice.from_raw(raw)
+    assert u is not None
+    assert u.humidity_range() == (30, 70)   # widened across modes
+    # a unit with no metadata falls back to the default band
+    assert airone.AironeDevice.from_raw(_sample_raw()).humidity_range() == (40, 70)
+
+
 def test_topic_slash_escaping():
     body = ('{"requestTopic":"cmd/rc/v2/1/RC/remote/power",'
             '"responseTopic":"cmd/rc/v2/1/RC/remote/power/res"}')
