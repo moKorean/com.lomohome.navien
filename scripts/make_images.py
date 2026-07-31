@@ -103,7 +103,7 @@ def _app_icon() -> str:
     lw, lh = float(vb.group(1)), float(vb.group(2))
     group = re.search(r"(<g\b.*?</g>)", svg, re.S).group(1)
     group = re.sub(r'fill="#[0-9a-fA-F]+"', f'fill="{INK}"', group, count=1)
-    target_w = 820.0
+    target_w = 900.0
     s = target_w / lw
     tx, ty = (960 - target_w) / 2, (960 - lh * s) / 2
     return (f'  <g transform="translate({tx:.2f} {ty:.2f}) scale({s:.6f})">\n'
