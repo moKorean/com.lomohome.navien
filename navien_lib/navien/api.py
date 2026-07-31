@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 import time
 import urllib.error
 import urllib.parse
@@ -95,9 +94,12 @@ class NavienApi:
         token_msg = await self._run(self._form_login)
         self.access_token = token_msg["accessToken"]
         login_id = token_msg["loginId"]
-        self.account_seq = str(token_msg["userSeq"])
+        # Keep userSeq's original type (an int) for the sign-in body — stringifying it
+        # makes secured-sign-in return 500.
+        account_seq = token_msg["userSeq"]
+        self.account_seq = str(account_seq)
 
-        data = await self._run(self._secured_sign_in, login_id, self.account_seq)
+        data = await self._run(self._secured_sign_in, login_id, account_seq)
         self.homes = data.get("home") or data.get("homes") or []
         self.user_seq = str((data.get("userInfo") or {}).get("userSeq") or self.account_seq)
         self.aws = AwsCredentials.from_auth_info(data.get("authInfo") or {})
@@ -249,15 +251,25 @@ class NavienApi:
 
     @staticmethod
     def _extract_message_json(html: str) -> dict | None:
-        m = re.search(r"var\s+message\s*=\s*(\{.*?\})\s*;", html, re.DOTALL)
-        if not m:
-            return None
-        try:
-            return json.loads(m.group(1))
-        except Exception:
-            return None
+        """Parse the `var message = {...}` token blob from the login HTML.
 
-    def _secured_sign_in(self, login_id: str, account_seq: str) -> dict:
+        Scans the line from its first `{` to its last `}` (not a non-greedy regex) so
+        nested objects in the blob don't truncate it.
+        """
+        for line in html.splitlines():
+            if "var message" not in line:
+                continue
+            start = line.find("{")
+            end = line.rfind("}")
+            if start == -1 or end <= start:
+                continue
+            try:
+                return json.loads(line[start:end + 1])
+            except Exception:
+                continue
+        return None
+
+    def _secured_sign_in(self, login_id: str, account_seq) -> dict:
         headers = {
             "Authorization": self.access_token,
             "User-Agent": USER_AGENT,
