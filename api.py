@@ -13,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from lib import compat
 from lib.const import (
+    API_URL,
+    IOT_ENDPOINT,
     SETTING_HOME_SEQ,
     SETTING_PASSWORD,
     SETTING_UI_LANGUAGE,
@@ -80,6 +82,25 @@ async def clear_credentials(homey, **kwargs) -> dict:
     for key in (SETTING_USERNAME, SETTING_PASSWORD, SETTING_HOME_SEQ):
         await compat.setting_unset(homey, key)
     return {"ok": True}
+
+
+def _mask(value: str) -> str:
+    if not value:
+        return ""
+    return f"{value[0]}***{value[-1]}" if len(value) > 2 else "***"
+
+
+async def diagnostics(homey, **kwargs) -> dict:
+    """Non-sensitive status for the settings page (no password, masked account)."""
+    username = await compat.setting_get(homey, SETTING_USERNAME)
+    return {
+        "configured": bool(username),
+        "username_masked": _mask(username),
+        "home_seq": await compat.setting_get(homey, SETTING_HOME_SEQ),
+        "ui_language": await compat.setting_get(homey, SETTING_UI_LANGUAGE),
+        "api_url": API_URL,
+        "iot_endpoint": IOT_ENDPOINT,
+    }
 
 
 async def set_language(homey, **kwargs) -> dict:

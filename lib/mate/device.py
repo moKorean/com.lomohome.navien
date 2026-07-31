@@ -97,10 +97,26 @@ class MateDevice_(device.Device):
             try:
                 await self._refresh_model()
                 await self._apply_state()
+                await self._ensure_mqtt()
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
                 self.log(f"poll failed: {exc}")
+
+    async def _ensure_mqtt(self) -> None:
+        """Reconnect realtime push with fresh credentials if it dropped."""
+        if self._mqtt is None:
+            await self._start_mqtt()
+            return
+        if self._mqtt.connected:
+            return
+        self.log("mqtt not connected; refreshing credentials and reconnecting")
+        try:
+            await self._api.login()
+            await self._to_thread(self._mqtt.close)
+            await self._to_thread(self._mqtt.connect_blocking)
+        except Exception as exc:
+            self.log(f"mqtt reconnect failed: {exc}")
 
     async def _refresh_model(self) -> None:
         for raw in await self._api.list_devices(self._home_seq):

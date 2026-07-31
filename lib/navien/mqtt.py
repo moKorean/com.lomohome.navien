@@ -107,10 +107,15 @@ class NavienMqtt:
         self._log = log
         self._client = None
         self._client_id = ""
+        self._connected = False
 
     @property
     def client_id(self) -> str:
         return self._client_id
+
+    @property
+    def connected(self) -> bool:
+        return self._connected
 
     def connect_blocking(self) -> None:
         """Build a client and connect. Runs in an executor thread (blocking)."""
@@ -156,9 +161,11 @@ class NavienMqtt:
             return
         for topic in self._topics():
             client.subscribe(topic, qos=0)
+        self._connected = True
         self._log(f"navien mqtt: connected, subscribed {self._topics()}")
 
     def _on_disconnect(self, _client, _userdata, *args):
+        self._connected = False
         self._log("navien mqtt: disconnected")
 
     def _on_message(self, _client, _userdata, message):

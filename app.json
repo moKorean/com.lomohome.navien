@@ -60,6 +60,10 @@
       "method": "POST",
       "path": "/credentials-clear"
     },
+    "diagnostics": {
+      "method": "GET",
+      "path": "/diagnostics"
+    },
     "set_language": {
       "method": "POST",
       "path": "/language"

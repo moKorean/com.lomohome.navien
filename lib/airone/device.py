@@ -115,10 +115,31 @@ class AironeDevice_(device.Device):
             await asyncio.sleep(POLL_INTERVAL_S)
             try:
                 await self._poll_once()
+                await self._ensure_mqtt()
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
                 self.log(f"poll failed: {exc}")
+
+    async def _ensure_mqtt(self) -> None:
+        """Keep realtime push alive: reconnect with fresh credentials if it dropped.
+
+        paho reconnects transient blips on its own, but the presigned WebSocket path
+        expires, so a lasting drop needs a fresh login (which re-mints the AWS creds
+        via secured-sign-in) and a clean reconnect.
+        """
+        if self._mqtt is None:
+            await self._start_mqtt()
+            return
+        if self._mqtt.connected:
+            return
+        self.log("mqtt not connected; refreshing credentials and reconnecting")
+        try:
+            await self._api.login()
+            await self._to_thread(self._mqtt.close)
+            await self._to_thread(self._mqtt.connect_blocking)
+        except Exception as exc:
+            self.log(f"mqtt reconnect failed: {exc}")
 
     async def _start_mqtt(self) -> None:
         if not self._api.aws:

@@ -64,4 +64,19 @@ homey app run       # run on a connected Homey
   500×500 / 1000×1000), but they are a simple generated logo — replace with real
   product imagery before publishing to the app store.
 - Confirm control against a real AirOne unit and adjust `lib/navien/airone.py` if needed.
-- Multi-home accounts currently default to the first home; a picker is TODO.
+
+### Not yet ported (from the upstream integration)
+
+These are refinements over an already-functional control surface:
+
+- **AirOne mode/fan lists limited to what the server reports.** Modes, fan speeds and
+  the humidity band are currently offered from a fixed enum; the upstream project narrows
+  them per unit from `roomController.mode` metadata. (Option control, sensors, and the
+  server-derived humidity *range* are ported.)
+- **AirMonitor as a separate device** (`via_device`) — its air-quality sensors are read
+  onto the main device instead.
+- **Older-generation AirOne (`modelCode < 1000`)** — different envelope/topic; only the
+  newer generation is supported.
+- **Multi-home accounts** default to the first home; a picker is TODO.
+- **Reauth repair flow** — a wrong password shows an error at pairing/settings; there is
+  no dedicated repair view yet.
