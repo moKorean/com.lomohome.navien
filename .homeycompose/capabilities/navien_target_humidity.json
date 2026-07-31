@@ -15,5 +15,6 @@
   "units": {
     "en": "%",
     "ko": "%"
-  }
+  },
+  "insights": true
 }

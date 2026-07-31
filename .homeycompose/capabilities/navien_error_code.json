@@ -8,5 +8,6 @@
   "setable": false,
   "uiComponent": "sensor",
   "icon": "/assets/capabilities/mdi-alert-circle-outline.svg",
-  "decimals": 0
+  "decimals": 0,
+  "insights": true
 }

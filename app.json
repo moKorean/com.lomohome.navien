@@ -461,7 +461,9 @@
         "measure_humidity",
         "navien_pm1",
         "navien_tvoc",
+        "navien_tvoc_grade",
         "navien_radon",
+        "navien_radon_grade",
         "navien_air_grade"
       ],
       "platforms": [
@@ -541,7 +543,9 @@
         "navien_pm1",
         "navien_pm10",
         "navien_tvoc",
+        "navien_tvoc_grade",
         "navien_radon",
+        "navien_radon_grade",
         "navien_air_grade",
         "navien_filter_usage",
         "navien_error_code",
@@ -680,7 +684,8 @@
       "setable": false,
       "uiComponent": "sensor",
       "icon": "/assets/capabilities/mdi-gauge.svg",
-      "decimals": 0
+      "decimals": 0,
+      "insights": true
     },
     "navien_airone_fan": {
       "type": "enum",
@@ -820,7 +825,8 @@
       "setable": false,
       "uiComponent": "sensor",
       "icon": "/assets/capabilities/mdi-alert-circle-outline.svg",
-      "decimals": 0
+      "decimals": 0,
+      "insights": true
     },
     "navien_filter_usage": {
       "type": "number",
@@ -836,7 +842,8 @@
       "units": {
         "en": "%",
         "ko": "%"
-      }
+      },
+      "insights": true
     },
     "navien_heat_level": {
       "type": "number",
@@ -882,7 +889,8 @@
       "units": {
         "en": "µg/m³",
         "ko": "㎍/㎥"
-      }
+      },
+      "insights": true
     },
     "navien_pm10": {
       "type": "number",
@@ -898,7 +906,8 @@
       "units": {
         "en": "µg/m³",
         "ko": "㎍/㎥"
-      }
+      },
+      "insights": true
     },
     "navien_radon": {
       "type": "number",
@@ -914,7 +923,19 @@
       "units": {
         "en": "Bq/m³",
         "ko": "Bq/㎥"
-      }
+      },
+      "insights": true
+    },
+    "navien_radon_grade": {
+      "type": "string",
+      "title": {
+        "en": "Radon level",
+        "ko": "라돈 등급"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/mdi-radioactive.svg"
     },
     "navien_running_state": {
       "type": "string",
@@ -971,7 +992,8 @@
       "units": {
         "en": "%",
         "ko": "%"
-      }
+      },
+      "insights": true
     },
     "navien_tvoc": {
       "type": "number",
@@ -983,7 +1005,19 @@
       "setable": false,
       "uiComponent": "sensor",
       "icon": "/assets/capabilities/mdi-leaf.svg",
-      "decimals": 0
+      "decimals": 0,
+      "insights": true
+    },
+    "navien_tvoc_grade": {
+      "type": "string",
+      "title": {
+        "en": "TVOC level",
+        "ko": "TVOC 등급"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/mdi-leaf.svg"
     }
   }
 }

@@ -105,6 +105,27 @@ def test_desired_option_keeps_mode_and_humidity():
     assert d["additionalData"] == {"type": 1, "value": 55}   # humidity carried
 
 
+def test_target_humidity_reads_type3_not_type1():
+    """The device reports the value as type 3; a co-resident type-1 item (range 0-4)
+    must be ignored via the bounds check, not read as the humidity."""
+    raw = _sample_raw()
+    room = raw["Properties"]["data"]["did"]["reported"]["roomController"]
+    room["mode"] = 9
+    room["additionalData"] = [
+        {"type": 1, "value": 1},    # the 0-4 item — out of the 40-70 band
+        {"type": 3, "value": 60},   # the real target humidity
+    ]
+    u = airone.AironeDevice.from_raw(raw)
+    assert u.target_humidity == 60
+
+
+def test_target_humidity_none_outside_humidity_modes():
+    raw = _sample_raw()
+    raw["Properties"]["data"]["did"]["reported"]["roomController"]["mode"] = 12  # 자동
+    u = airone.AironeDevice.from_raw(raw)
+    assert u.target_humidity is None
+
+
 def test_humidity_range_from_server_metadata():
     raw = {
         "serviceCode": 300, "deviceSeq": 5, "deviceId": "A",

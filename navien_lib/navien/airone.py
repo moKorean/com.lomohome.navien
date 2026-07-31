@@ -20,6 +20,7 @@ from navien_lib.const import (
     AIRONE_V2_MIN_MODEL_CODE,
     HUMIDITY_MAX_FALLBACK,
     HUMIDITY_MIN_FALLBACK,
+    HUMIDITY_REPORT_TYPE,
     HUMIDITY_TYPE,
     MODE_NAMES,
     MODES_WITH_HUMIDITY,
@@ -268,18 +269,33 @@ class AironeDevice:
 
     @property
     def target_humidity(self):
-        """Target humidity if the current mode carries one, else None."""
+        """Target humidity if the current mode carries one, else None.
+
+        The value comes back as an `additionalData` entry inside the mode's humidity
+        range — reported as type 3, though a type-1 (range 0-4) item shares the list, so
+        the range check is what actually disambiguates. Prefer the confirmed type 3 when
+        several entries qualify. Mirrors navien_smart_ha's target_humidity.
+        """
         if self.mode not in MODES_WITH_HUMIDITY:
             return None
-        extra = self._room.get("additionalData") or {}
-        if isinstance(extra, list):
-            extra = next((e for e in extra if e.get("type") == HUMIDITY_TYPE), {})
-        if extra.get("type") == HUMIDITY_TYPE:
-            try:
-                return int(extra.get("value"))
-            except (TypeError, ValueError):
-                return None
-        return None
+        low, high = self.humidity_range()
+        extras = self._room.get("additionalData") or []
+        if isinstance(extras, dict):
+            extras = [extras]
+        candidates = []
+        for extra in extras:
+            if not isinstance(extra, dict):
+                continue
+            value = _as_int(extra.get("value"))
+            if value is None or not low <= value <= high:
+                continue
+            candidates.append((_as_int(extra.get("type")), value))
+        if not candidates:
+            return None
+        for kind, value in candidates:
+            if kind == HUMIDITY_REPORT_TYPE:
+                return value
+        return candidates[0][1]
 
     @property
     def error_code(self):

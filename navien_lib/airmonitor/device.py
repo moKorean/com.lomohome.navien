@@ -22,15 +22,24 @@ from navien_lib.const import (
 from navien_lib.navien.airone import parse_air_sensors_for
 from navien_lib.navien.api import NavienApi
 
+# AirMonitor uses the standard measure_pm10 for 미세먼지 (AirOne uses navien_pm10); map
+# both so whichever capability the driver actually has gets populated. _set() skips any
+# capability the device doesn't expose.
 _SENSOR_KINDS = {
     "measure_temperature": "temperature",
     "measure_humidity": "humidity",
     "measure_pm25": "pm25",
+    "measure_pm10": "pm10",
     "measure_co2": "co2",
     "navien_pm1": "pm1",
     "navien_pm10": "pm10",
     "navien_tvoc": "tvoc",
     "navien_radon": "radon",
+}
+
+_GRADE_KINDS = {
+    "navien_tvoc_grade": "tvoc",
+    "navien_radon_grade": "radon",
 }
 
 
@@ -83,6 +92,9 @@ class AirMonitorDevice_(device.Device):
         for capability, kind in _SENSOR_KINDS.items():
             reading = self._sensors.get(kind) or {}
             await self._set(capability, self._num(reading.get("value")))
+        for capability, kind in _GRADE_KINDS.items():
+            reading = self._sensors.get(kind) or {}
+            await self._set(capability, reading.get("level") or None)
         total = self._sensors.get("total") or {}
         await self._set("navien_air_grade", self._num(total.get("value")))
 

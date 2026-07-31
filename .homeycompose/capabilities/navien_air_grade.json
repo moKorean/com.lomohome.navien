@@ -1,9 +1,13 @@
 {
   "type": "number",
-  "title": { "en": "Air quality", "ko": "종합 공기질" },
+  "title": {
+    "en": "Air quality",
+    "ko": "종합 공기질"
+  },
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
   "icon": "/assets/capabilities/mdi-gauge.svg",
-  "decimals": 0
+  "decimals": 0,
+  "insights": true
 }

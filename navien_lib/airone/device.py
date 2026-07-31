@@ -49,6 +49,13 @@ _SENSOR_KINDS = {
     "navien_radon": "radon",
 }
 
+# Text "grade" sensors that surface the server's air-quality level ("좋음"/"나쁨"/…)
+# alongside the numeric reading, for the sensors that carry one.
+_GRADE_KINDS = {
+    "navien_tvoc_grade": "tvoc",
+    "navien_radon_grade": "radon",
+}
+
 # The mode/fan pickers fold "option" (수면/터보/절전) into the two lists, so a single
 # picker value maps to either a mode/airVolume or an option. Ids: mode "m{mode}" +
 # "sleep"; fan "v{airVolume}" + "o{option}". Kept in sync with the capability JSONs.
@@ -205,10 +212,11 @@ class AironeDevice_(device.Device):
                 # so a device paired before the model-code fix corrects itself.
                 if unit.model_code:
                     self._model_code = unit.model_code
-                # `unit.reported` still carries the server's humidity metadata (a list),
-                # which the MQTT state later overwrites, so read the range before merging.
+                # Only the humidity *range* is taken from the device-list metadata. Its
+                # roomController.mode is a list (not the live int) and it carries no
+                # airVolume/option/running, so merging it into the live state would clobber
+                # what MQTT reported — the status request below refreshes the live values.
                 await self._sync_humidity_range(unit.humidity_range())
-                self._unit.apply_reported(unit.reported)
                 break
 
         try:
@@ -337,6 +345,9 @@ class AironeDevice_(device.Device):
         for capability, kind in _SENSOR_KINDS.items():
             reading = u.air_sensors.get(kind) or {}
             await self._set(capability, self._num(reading.get("value")))
+        for capability, kind in _GRADE_KINDS.items():
+            reading = u.air_sensors.get(kind) or {}
+            await self._set(capability, reading.get("level") or None)
         total = u.air_sensors.get("total") or {}
         await self._set("navien_air_grade", self._num(total.get("value")))
         filters = u.filters

@@ -1,10 +1,17 @@
 {
   "type": "number",
-  "title": { "en": "Radon", "ko": "라돈" },
+  "title": {
+    "en": "Radon",
+    "ko": "라돈"
+  },
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
   "icon": "/assets/capabilities/mdi-radioactive.svg",
   "decimals": 0,
-  "units": { "en": "Bq/m³", "ko": "Bq/㎥" }
+  "units": {
+    "en": "Bq/m³",
+    "ko": "Bq/㎥"
+  },
+  "insights": true
 }

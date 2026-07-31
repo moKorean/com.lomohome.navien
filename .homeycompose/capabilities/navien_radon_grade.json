@@ -1,0 +1,8 @@
+{
+  "type": "string",
+  "title": { "en": "Radon level", "ko": "라돈 등급" },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/capabilities/mdi-radioactive.svg"
+}

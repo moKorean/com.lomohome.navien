@@ -12,5 +12,6 @@
   "units": {
     "en": "µg/m³",
     "ko": "㎍/㎥"
-  }
+  },
+  "insights": true
 }

@@ -1,0 +1,8 @@
+{
+  "type": "string",
+  "title": { "en": "TVOC level", "ko": "TVOC 등급" },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/capabilities/mdi-leaf.svg"
+}

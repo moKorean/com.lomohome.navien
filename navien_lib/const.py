@@ -159,7 +159,12 @@ AIR_VOLUME_NAMES = {
 }
 
 # --- Target humidity -------------------------------------------------------
-HUMIDITY_TYPE = 1                      # additionalData.type meaning "target humidity"
+# The server's *range* comes back as additionalData type 1 ({type:1,min,max}); the
+# device reports the *current value* as type 3 ({type:3,value}). type 1 also appears in
+# device state as an unrelated 0-4 item, so the value must be read by type 3 (and cross-
+# checked against the range), never by type 1. Confirmed against navien_smart_ha.
+HUMIDITY_TYPE = 1                      # additionalData.type for the range / for sending
+HUMIDITY_REPORT_TYPE = 3              # additionalData.type the device reports the value as
 HUMIDITY_STEP = 5                      # app -/+ button granularity
 HUMIDITY_MIN_FALLBACK = 40             # used only if the server gives no range
 HUMIDITY_MAX_FALLBACK = 70
