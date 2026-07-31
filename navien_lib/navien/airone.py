@@ -23,6 +23,7 @@ from navien_lib.const import (
     HUMIDITY_TYPE,
     MODES_WITH_HUMIDITY,
     OPTION_NONE,
+    RUNNING_NAMES,
     RUNNING_OFF,
     RUNNING_ON,
     SERVICE_AIRONE,
@@ -205,6 +206,16 @@ class AironeDevice:
     @property
     def is_on(self) -> bool:
         return self.running == RUNNING_ON
+
+    def running_name(self, language: str = "en"):
+        """Localized running-state name; unknown codes shown as 'State (n)'."""
+        r = self.running
+        if r is None:
+            return None
+        label = RUNNING_NAMES.get(r)
+        if label:
+            return label.get(language, label.get("en"))
+        return f"상태 ({r})" if language == "ko" else f"State ({r})"
 
     @property
     def mode(self):

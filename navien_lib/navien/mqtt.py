@@ -181,8 +181,6 @@ class NavienMqtt:
             return
         parsed = self._parser(message.topic, payload)
         if parsed is None:
-            dump = json.dumps(payload, ensure_ascii=False)[:900]
-            self._log(f"navien mqtt: unparsed {message.topic}: {dump}")
             return
         device_id, reported = parsed
         # Hop off the paho thread before touching Homey/asyncio state.

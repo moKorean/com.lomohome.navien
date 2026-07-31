@@ -604,7 +604,7 @@
       }
     },
     "navien_running_state": {
-      "type": "enum",
+      "type": "string",
       "title": {
         "en": "State",
         "ko": "운전 상태"
@@ -612,30 +612,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/capabilities/mdi-air-purifier.svg",
-      "values": [
-        {
-          "id": "1",
-          "title": {
-            "en": "Running",
-            "ko": "운전"
-          }
-        },
-        {
-          "id": "2",
-          "title": {
-            "en": "Stopped",
-            "ko": "정지"
-          }
-        },
-        {
-          "id": "3",
-          "title": {
-            "en": "Away",
-            "ko": "외출"
-          }
-        }
-      ]
+      "icon": "/assets/capabilities/mdi-air-purifier.svg"
     },
     "navien_season": {
       "type": "enum",

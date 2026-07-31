@@ -300,10 +300,8 @@ class AironeDevice_(device.Device):
 
     async def _apply_state(self) -> None:
         u = self._unit
-        self.log(f"airone state: on={u.is_on} mode={u.mode} fan={u.air_volume} "
-                 f"opt={u.option} hum={u.target_humidity} sensors={list(u.air_sensors)}")
         await self._set("onoff", u.is_on)
-        await self._set("navien_running_state", self._enum(u.running))
+        await self._set("navien_running_state", u.running_name(self._language))
         await self._set("navien_airone_mode", self._enum(u.mode))
         await self._set("navien_airone_fan", self._enum(u.air_volume))
         await self._set("navien_airone_option", self._enum(u.option))

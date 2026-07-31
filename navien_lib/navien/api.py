@@ -176,9 +176,7 @@ class NavienApi:
         data = await self._authed(
             "GET", f"/devices/{device_seq}/air-sensor?{self._q(home_seq)}"
         )
-        sensor_list = (data or {}).get("sensorList") or []
-        self.log(f"navien air-sensor raw: {json.dumps(sensor_list, ensure_ascii=False)[:700]}")
-        return sensor_list
+        return (data or {}).get("sensorList") or []
 
     # --- request plumbing --------------------------------------------------
 
