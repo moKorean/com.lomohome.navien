@@ -95,6 +95,80 @@
   "drivers": [
     {
       "name": {
+        "en": "Navien AirMonitor",
+        "ko": "나비엔 에어모니터"
+      },
+      "class": "sensor",
+      "capabilities": [
+        "measure_pm25",
+        "measure_pm10",
+        "measure_co2",
+        "measure_temperature",
+        "measure_humidity",
+        "navien_pm1",
+        "navien_tvoc",
+        "navien_radon",
+        "navien_air_grade"
+      ],
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "images": {
+        "small": "/drivers/airmonitor/assets/images/small.png",
+        "large": "/drivers/airmonitor/assets/images/large.png",
+        "xlarge": "/drivers/airmonitor/assets/images/xlarge.png"
+      },
+      "pair": [
+        {
+          "id": "start"
+        },
+        {
+          "id": "login_credentials",
+          "template": "login_credentials",
+          "options": {
+            "usernameLabel": {
+              "en": "Navien account ID",
+              "ko": "나비엔 스마트 아이디"
+            },
+            "passwordLabel": {
+              "en": "Password",
+              "ko": "비밀번호"
+            }
+          },
+          "navigation": {
+            "next": "choose_home"
+          }
+        },
+        {
+          "id": "choose_home",
+          "navigation": {
+            "next": "list_devices"
+          }
+        },
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "repair": [
+        {
+          "id": "reconnect"
+        }
+      ],
+      "id": "airmonitor"
+    },
+    {
+      "name": {
         "en": "Navien AirOne",
         "ko": "나비엔 에어원"
       },

@@ -125,6 +125,27 @@ def test_airone_mode_metadata():
     assert u.humidity_range() == (40, 70)
 
 
+def test_air_monitors_and_per_monitor_parse():
+    raw = {
+        "serviceCode": 300, "deviceSeq": 7, "deviceId": "A",
+        "Properties": {"modelCode": 1300, "data": {"did": {"reported": {
+            "roomController": {"deviceId": "RC"},
+            "airMonitor": [{"deviceId": "AM-1", "zoneId": 2, "modelCode": 35},
+                           {"deviceId": "AM-2", "zoneId": 3}]}}}},
+    }
+    u = airone.AironeDevice.from_raw(raw)
+    mons = u.air_monitors()
+    assert len(mons) == 2 and mons[0]["monitor_id"] == "AM-1" and mons[0]["zone_id"] == 2
+    sensor_list = [
+        {"zoneId": 2, "airMonitor": {"deviceId": "AM-1"},
+         "airs": [{"type": "pm2Dot5", "value": 9, "level": 1}]},
+        {"zoneId": 3, "airMonitor": {"deviceId": "AM-2"},
+         "airs": [{"type": "co2", "value": 800, "level": 2}]},
+    ]
+    parsed = airone.parse_air_sensors_for(sensor_list, zone_id=3, monitor_id="AM-2")
+    assert parsed.get("co2", {}).get("value") == 800 and "pm25" not in parsed
+
+
 def test_topic_slash_escaping():
     body = ('{"requestTopic":"cmd/rc/v2/1/RC/remote/power",'
             '"responseTopic":"cmd/rc/v2/1/RC/remote/power/res"}')

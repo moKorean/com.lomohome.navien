@@ -351,6 +351,23 @@ class AironeDevice:
                 out.append(m.air_volume)
         return sorted(out)
 
+    def air_monitors(self) -> list:
+        """Standalone AirMonitor units attached to this device (separate hardware)."""
+        out = []
+        raw = self.reported.get("airMonitor")
+        if not isinstance(raw, list):
+            return out
+        for i, m in enumerate(raw):
+            if not isinstance(m, dict):
+                continue
+            out.append({
+                "monitor_id": str(m.get("deviceId") or f"{self.device_id}_airmonitor_{i}"),
+                "zone_id": m.get("zoneId"),
+                "model_code": _as_int(m.get("modelCode")) or 0,
+                "version": m.get("version"),
+            })
+        return out
+
     def humidity_range(self) -> tuple:
         """(min, max) target humidity from the server's mode metadata.
 
@@ -393,3 +410,23 @@ def parse_air_sensors(sensor_list: list) -> dict:
                 continue
             out[kind] = {"value": air.get("value"), "level": air.get("level")}
     return out
+
+
+def parse_air_sensors_for(sensor_list: list, zone_id=None, monitor_id=None) -> dict:
+    """Air readings for one AirMonitor: pick its `sensorList` entry, then flatten.
+
+    Matches on zoneId first, then the entry's `airMonitor.deviceId`; falls back to the
+    first entry so a single-monitor account still populates.
+    """
+    chosen = None
+    for sensor in sensor_list or []:
+        if zone_id is not None and sensor.get("zoneId") == zone_id:
+            chosen = sensor
+            break
+        monitor = sensor.get("airMonitor") or {}
+        if monitor_id and monitor.get("deviceId") == monitor_id:
+            chosen = sensor
+            break
+    if chosen is None and sensor_list:
+        chosen = sensor_list[0]
+    return parse_air_sensors([chosen] if chosen else [])

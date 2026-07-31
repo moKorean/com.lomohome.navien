@@ -99,6 +99,8 @@ STORE_DEVICE_ID = "device_id"          # id from the device list
 STORE_PHYSICAL_ID = "physical_id"      # roomController.deviceId, used in topics
 STORE_MODEL_CODE = "model_code"
 STORE_SERVICE_CODE = "service_code"
+STORE_MONITOR_ID = "monitor_id"        # AirMonitor: its own id
+STORE_ZONE_ID = "zone_id"              # AirMonitor: which sensor zone to read
 
 # --- Timings ---------------------------------------------------------------
 POLL_INTERVAL_S = 300.0                # REST re-read of device state / air sensors
