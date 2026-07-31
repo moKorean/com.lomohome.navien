@@ -10,5 +10,9 @@
   "0.5.0": {
     "en": "Controls now hold the value you just set while the appliance catches up (~3 s), so mode and humidity no longer snap back. Desired humidity is adjustable in Dehumidify mode, and fan speed in Ventilate/Dehumidify/Purify/Bypass or the Sleep option; other modes explain why and the setting shows in the status sensor. Clearer settings screen with the Navien logo.",
     "ko": "명령을 보내면 기기가 반영하는 ~3초 동안 설정값을 유지해, 운전 모드·희망 습도가 다시 되돌아가지 않습니다. 희망 습도는 제습 모드에서, 풍량은 환기·제습·청정·바이패스 또는 숙면 옵션에서 조절할 수 있고, 그 외 모드에서는 이유를 안내하며 현재 설정을 상태 센서에 표시합니다. 나비엔 로고를 넣어 설정 화면을 정리했습니다."
+  },
+  "0.5.1": {
+    "en": "Hold a just-set control for 5 seconds so slower changes no longer snap back. Removed desired humidity from the operating-status text to keep it from being clipped.",
+    "ko": "설정한 값을 5초간 유지하도록 늘려, 반영이 느린 변경도 되돌아가지 않습니다. 운전 정보 텍스트가 잘리지 않도록 희망 습도 표시를 뺐습니다."
   }
 }

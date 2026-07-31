@@ -69,7 +69,7 @@ _FAN_IDS = {"v4", "o3", "v1", "v3", "o2"}
 # poll/MQTT report arriving in that gap still carries the *old* value and would snap a
 # just-changed control back. After a command we show the requested value immediately
 # (optimistic) and hold it — ignoring control updates — until the device settles.
-_SETTLE_S = 8.0
+_SETTLE_S = 5.0
 
 
 def _mode_id(u) -> str | None:
