@@ -295,13 +295,12 @@ class AironeDevice:
     def status_text(self, language: str = "en"):
         """One-line '운전모드 · 풍량 · 옵션' text for a read-only status sensor.
 
-        While the unit is auto-drying (running state 4, after dehumidify) that leads the
-        line so it's obvious that's what's happening.
+        While the unit is auto-drying (running state 4, after dehumidify) the mode/fan
+        aren't meaningful, so show only '자동 건조중'.
         """
-        parts = []
         if self.running == RUNNING_AUTO_DRY:
-            parts.append(self.running_name(language))
-        parts += [self.mode_name(language), self.fan_name(language)]
+            return self.running_name(language)
+        parts = [self.mode_name(language), self.fan_name(language)]
         if self.option not in (None, OPTION_NONE):
             parts.append(self.option_name(language))
         parts = [p for p in parts if p]

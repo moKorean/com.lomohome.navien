@@ -411,13 +411,15 @@ class AironeDevice_(device.Device):
 
     async def _apply_state(self, force: bool = False) -> None:
         u = self._unit
-        # Controls (power/mode/fan/humidity + their status text) are held at the value the
-        # user just set until the appliance settles, so a lagging report can't snap them
-        # back. `force` is the optimistic push right after a command. Sensors always apply.
+        # Read-only reflections of the appliance's own state — always applied so a change
+        # (e.g. entering '자동 건조중') shows immediately, never held by the settle window.
+        await self._set("navien_running_state", u.running_name(self._language))
+        await self._set("navien_airone_status", u.status_text(self._language))
+        # User-set controls (power/mode/fan/humidity) are held at the value the user just
+        # set until the appliance settles, so a lagging report can't snap them back.
+        # `force` is the optimistic push right after a command.
         if force or time.monotonic() >= self._settle_until:
             await self._set("onoff", u.is_on)
-            await self._set("navien_running_state", u.running_name(self._language))
-            await self._set("navien_airone_status", u.status_text(self._language))
             await self._set_choice("navien_airone_mode", _mode_id(u), _MODE_IDS)
             await self._set_choice("navien_airone_fan", _fan_id(u), _FAN_IDS)
             hum = u.target_humidity

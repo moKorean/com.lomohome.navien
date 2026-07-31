@@ -65,7 +65,7 @@ def test_running_state_auto_dry():
     u = airone.AironeDevice.from_raw(_sample_raw())
     u.apply_reported({"roomController": {"running": 4}})
     assert u.running_name("ko") == "자동 건조중"
-    assert u.status_text("ko").startswith("자동 건조중 · ")
+    assert u.status_text("ko") == "자동 건조중"   # only this, no mode/fan
 
 
 def test_apply_reported_strips_capability_descriptors():
