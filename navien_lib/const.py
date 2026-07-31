@@ -131,8 +131,13 @@ MODE_NAMES = {
     17: {"en": "Bypass", "ko": "바이패스"},
     18: {"en": "Negative-pressure ventilation", "ko": "음압환기"},
 }
-# Modes that carry a target-humidity setting.
-MODES_WITH_HUMIDITY = {9, 10}
+# Modes that carry a target-humidity setting. Only 제습(9) on this hardware — 환기제습(10)
+# does not expose a humidity control (confirmed by the maintainer).
+MODES_WITH_HUMIDITY = {9}
+
+# Modes in which the fan speed is user-selectable (환기, 청정, 제습, 바이패스). The 숙면
+# option also allows it. In 자동/환기제습/요리 the unit drives the fan itself.
+FAN_ADJUSTABLE_MODES = {4, 8, 9, 17}
 
 # --- AirOne option (roomController.option) ---------------------------------
 OPTION_NONE = 1

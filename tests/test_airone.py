@@ -66,10 +66,12 @@ def test_control_payloads():
     power = u.desired_power(False)["roomController"]
     assert power["running"] == 2 and power["deviceId"] == "RC-77" and power["zoneId"] == 1
 
-    mode = u.desired_mode(10)["roomController"]
-    assert mode["mode"] == 10
-    # Humidity is re-sent with the mode change so the device doesn't reset it.
+    # 제습(9) carries humidity, so it is re-sent with the mode change (device would
+    # otherwise reset it); a non-humidity mode carries no humidity payload.
+    mode = u.desired_mode(9)["roomController"]
+    assert mode["mode"] == 9
     assert mode["additionalData"] == {"type": 1, "value": 55}
+    assert "additionalData" not in u.desired_mode(10)["roomController"]
 
 
 def test_mqtt_extract_and_parse():

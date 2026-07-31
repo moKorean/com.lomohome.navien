@@ -1,8 +1,8 @@
 {
   "type": "number",
   "title": {
-    "en": "Target humidity",
-    "ko": "목표 습도"
+    "en": "Desired humidity",
+    "ko": "희망 습도"
   },
   "getable": true,
   "setable": true,

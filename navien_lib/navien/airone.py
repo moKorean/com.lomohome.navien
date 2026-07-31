@@ -246,10 +246,13 @@ class AironeDevice:
         return label.get(language, label.get("en")) if label else None
 
     def status_text(self, language: str = "en"):
-        """One-line '운전모드 · 풍량 · 옵션' text for a read-only status sensor."""
+        """One-line '운전모드 · 풍량 · 옵션 · 희망습도' text for a read-only status sensor."""
         parts = [self.mode_name(language), self.fan_name(language)]
         if self.option not in (None, OPTION_NONE):
             parts.append(self.option_name(language))
+        hum = self.target_humidity
+        if hum is not None:
+            parts.append(f"희망습도 {hum}%" if language == "ko" else f"humidity {hum}%")
         parts = [p for p in parts if p]
         return " · ".join(parts) if parts else None
 
