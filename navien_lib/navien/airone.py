@@ -136,10 +136,12 @@ class AironeDevice:
             _first(room, "modelCode") or _first(props, "modelCode")
             or _first(raw, "modelCode") or 0
         )
-        nickname = (
-            _first(props, "nickName", "nickname") or _first(raw, "nickName")
-            or "Navien AirOne"
-        )
+        nick = _first(props, "nickName", "nickname") or _first(raw, "nickName")
+        # nickName can be a dict like {"mainItem": "제습환기"}; take the label, not the dict.
+        if isinstance(nick, dict):
+            nick = nick.get("mainItem") or next(
+                (v for v in nick.values() if isinstance(v, str)), None)
+        nickname = nick or "Navien AirOne"
 
         if service_code is None and not room:
             return None  # not an AirOne at all

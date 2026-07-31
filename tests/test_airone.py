@@ -38,6 +38,16 @@ def test_from_raw_parses_newer_gen():
     assert u.filters == [42]
 
 
+def test_dict_nickname_uses_main_item():
+    raw = {
+        "serviceCode": 300, "deviceSeq": 1, "deviceId": "A",
+        "Properties": {"nickName": {"mainItem": "제습환기"}, "modelCode": 1300,
+                       "data": {"did": {"reported": {"roomController": {"deviceId": "RC"}}}}},
+    }
+    u = airone.AironeDevice.from_raw(raw)
+    assert u is not None and u.nickname == "제습환기"
+
+
 def test_older_gen_is_skipped():
     raw = {"serviceCode": 300, "deviceId": "OLD",
            "Properties": {"modelCode": 500,
