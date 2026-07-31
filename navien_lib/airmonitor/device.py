@@ -82,8 +82,7 @@ class AirMonitorDevice_(device.Device):
             reading = self._sensors.get(kind) or {}
             await self._set(capability, self._num(reading.get("value")))
         total = self._sensors.get("total") or {}
-        level = total.get("level")
-        await self._set("navien_air_grade", None if level is None else str(level))
+        await self._set("navien_air_grade", self._num(total.get("value")))
 
     async def _set(self, capability: str, value) -> None:
         if value is None or capability not in self.get_capabilities():

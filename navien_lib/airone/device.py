@@ -309,7 +309,7 @@ class AironeDevice_(device.Device):
             reading = u.air_sensors.get(kind) or {}
             await self._set(capability, self._num(reading.get("value")))
         total = u.air_sensors.get("total") or {}
-        await self._set("navien_air_grade", self._enum(total.get("level")))
+        await self._set("navien_air_grade", self._num(total.get("value")))
         filters = u.filters
         await self._set("navien_filter_usage", filters[0] if filters else None)
         await self._set("navien_error_code", self._num(u.error_code))

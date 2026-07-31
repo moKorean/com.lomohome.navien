@@ -321,7 +321,7 @@
   ],
   "capabilities": {
     "navien_air_grade": {
-      "type": "enum",
+      "type": "number",
       "title": {
         "en": "Air quality",
         "ko": "종합 공기질"
@@ -329,44 +329,8 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/capabilities/grade.svg",
-      "values": [
-        {
-          "id": "0",
-          "title": {
-            "en": "Unknown",
-            "ko": "알 수 없음"
-          }
-        },
-        {
-          "id": "1",
-          "title": {
-            "en": "Good",
-            "ko": "좋음"
-          }
-        },
-        {
-          "id": "2",
-          "title": {
-            "en": "Moderate",
-            "ko": "보통"
-          }
-        },
-        {
-          "id": "3",
-          "title": {
-            "en": "Bad",
-            "ko": "나쁨"
-          }
-        },
-        {
-          "id": "4",
-          "title": {
-            "en": "Very bad",
-            "ko": "매우 나쁨"
-          }
-        }
-      ]
+      "icon": "/assets/capabilities/mdi-gauge.svg",
+      "decimals": 0
     },
     "navien_airone_fan": {
       "type": "enum",
@@ -632,7 +596,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/capabilities/radon.svg",
+      "icon": "/assets/capabilities/mdi-radioactive.svg",
       "decimals": 0,
       "units": {
         "en": "Bq/m³",
