@@ -34,5 +34,9 @@
   "0.5.6": {
     "en": "The running-state sensor now shows 'Auto drying', the state the unit enters to dry itself after you turn off Dehumidify. Desired humidity is fixed to auto with the turbo/saver fan option, so trying to change it there now explains why.",
     "ko": "제습을 끈 뒤 기기가 내부를 말리는 '자동 건조중' 상태를 운전 상태 센서에 표시합니다. 터보·절전에서는 희망 습도가 자동이라, 그때 조절을 시도하면 이유를 안내합니다."
+  },
+  "0.5.7": {
+    "en": "Running state and operating info now refresh right away when the state changes instead of lagging after a command. While auto-drying, the operating info shows just 'Auto drying'.",
+    "ko": "운전 상태와 운전 정보가 명령 뒤에 늦게 반영되지 않고 상태가 바뀌는 즉시 갱신됩니다. 자동 건조중일 때는 운전 정보에 '자동 건조중'만 표시합니다."
   }
 }
