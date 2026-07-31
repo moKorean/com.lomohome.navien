@@ -1,8 +1,8 @@
 {
   "type": "number",
   "title": {
-    "en": "Target humidity (%)",
-    "ko": "목표 습도 (%)"
+    "en": "Target humidity",
+    "ko": "목표 습도"
   },
   "getable": true,
   "setable": true,
@@ -12,5 +12,8 @@
   "max": 70,
   "step": 5,
   "decimals": 0,
+  "units": {
+    "en": "％"
+  },
   "insights": true
 }
