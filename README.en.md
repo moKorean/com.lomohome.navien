@@ -26,7 +26,8 @@ The Homey port itself is © 2026 Geunwon Mo.
 
 - **AirOne control** — power, operating mode (auto, ventilate, ventilate + dehumidify,
   dehumidify, purify, cooking, sleep, bypass), fan speed (auto, saver, low, high, turbo),
-  and a server-checked desired humidity in Dehumidify mode.
+  and a server-checked desired humidity in Dehumidify mode on the base fan (it's automatic
+  with turbo/saver). The running-state sensor also shows "Auto drying" after Dehumidify.
 - **Air-quality sensors** — PM1.0, PM2.5, PM10, CO₂, TVOC (ppb), radon, temperature,
   humidity, an overall air-quality score and filter usage. TVOC and radon also carry a
   "good / bad" grade label. Every reading is parsed as a number, so it graphs in Insights.
