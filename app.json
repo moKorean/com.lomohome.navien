@@ -184,6 +184,7 @@
         "navien_airone_option",
         "navien_target_humidity",
         "navien_running_state",
+        "navien_airone_status",
         "measure_temperature",
         "measure_humidity",
         "measure_pm25",
@@ -496,6 +497,17 @@
           }
         }
       ]
+    },
+    "navien_airone_status": {
+      "type": "string",
+      "title": {
+        "en": "Running info",
+        "ko": "운전 정보"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/mdi-air-purifier.svg"
     },
     "navien_error_code": {
       "type": "number",

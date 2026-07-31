@@ -21,7 +21,9 @@ from navien_lib.const import (
     HUMIDITY_MAX_FALLBACK,
     HUMIDITY_MIN_FALLBACK,
     HUMIDITY_TYPE,
+    MODE_NAMES,
     MODES_WITH_HUMIDITY,
+    OPTION_NAMES,
     OPTION_NONE,
     RUNNING_NAMES,
     RUNNING_OFF,
@@ -183,7 +185,11 @@ class AironeDevice:
         deep_merge(self.reported, reported or {})
 
     def apply_air_sensors(self, sensor_list: list) -> None:
-        self.air_sensors = parse_air_sensors(sensor_list)
+        # Merge, don't replace: an occasional empty/partial poll must not wipe the
+        # values that are already showing.
+        parsed = parse_air_sensors(sensor_list)
+        if parsed:
+            self.air_sensors.update(parsed)
 
     # --- derived state -----------------------------------------------------
 
@@ -218,6 +224,33 @@ class AironeDevice:
         if label:
             return label.get(language, label.get("en"))
         return f"상태 ({r})" if language == "ko" else f"State ({r})"
+
+    @staticmethod
+    def _named(value, table, language, ko_prefix, en_prefix):
+        if value is None:
+            return None
+        label = table.get(value)
+        if label:
+            return label.get(language, label.get("en"))
+        return f"{ko_prefix} ({value})" if language == "ko" else f"{en_prefix} ({value})"
+
+    def mode_name(self, language: str = "en"):
+        return self._named(self.mode, MODE_NAMES, language, "모드", "Mode")
+
+    def fan_name(self, language: str = "en"):
+        return self._named(self.air_volume, AIR_VOLUME_NAMES, language, "풍량", "Fan")
+
+    def option_name(self, language: str = "en"):
+        label = OPTION_NAMES.get(self.option)
+        return label.get(language, label.get("en")) if label else None
+
+    def status_text(self, language: str = "en"):
+        """One-line '운전모드 · 풍량 · 옵션' text for a read-only status sensor."""
+        parts = [self.mode_name(language), self.fan_name(language)]
+        if self.option not in (None, OPTION_NONE):
+            parts.append(self.option_name(language))
+        parts = [p for p in parts if p]
+        return " · ".join(parts) if parts else None
 
     @property
     def mode(self):
@@ -283,52 +316,34 @@ class AironeDevice:
         room["running"] = RUNNING_ON if on else RUNNING_OFF
         return {"roomController": room}
 
-    def desired_mode(self, mode: int, option: int | None = None) -> dict:
-        """Change mode, carrying the current option/volume/humidity along.
-
-        The device resets humidity to its minimum if a mode change omits it, so the
-        current settings are always re-sent with the new mode.
-        """
-        room = self._room_base()
-        room["mode"] = int(mode)
-        room["option"] = int(option if option is not None else (self.option or OPTION_NONE))
-        if self.air_volume is not None:
-            room["airVolume"] = self.air_volume
+    def _change_mode(self, mode, option, air_volume, humidity_mode) -> dict:
+        """A change-mode `roomController`. Unlike power, it carries NO deviceId/zoneId
+        (matching the app) — only mode/option, plus airVolume and humidity when they
+        apply. Re-sending the current humidity stops the device resetting it."""
+        room = {"option": int(option)}
+        if mode is not None:
+            room["mode"] = int(mode)
+        if air_volume is not None:
+            room["airVolume"] = int(air_volume)
         hum = self.target_humidity
-        if mode in MODES_WITH_HUMIDITY and hum is not None:
+        if humidity_mode in MODES_WITH_HUMIDITY and hum is not None:
             room["additionalData"] = {"type": HUMIDITY_TYPE, "value": hum}
         return {"roomController": room}
+
+    def desired_mode(self, mode: int, option: int | None = None) -> dict:
+        opt = option if option is not None else (self.option or OPTION_NONE)
+        return self._change_mode(mode, opt, self.air_volume, int(mode))
 
     def desired_fan(self, air_volume: int) -> dict:
-        room = self._room_base()
-        if self.mode is not None:
-            room["mode"] = self.mode
-        room["option"] = self.option or OPTION_NONE
-        room["airVolume"] = int(air_volume)
-        return {"roomController": room}
-
-    def desired_humidity(self, value: int) -> dict:
-        room = self._room_base()
-        if self.mode is not None:
-            room["mode"] = self.mode
-        room["option"] = self.option or OPTION_NONE
-        if self.air_volume is not None:
-            room["airVolume"] = self.air_volume
-        room["additionalData"] = {"type": HUMIDITY_TYPE, "value": int(value)}
-        return {"roomController": room}
+        return self._change_mode(self.mode, self.option or OPTION_NONE, air_volume, self.mode)
 
     def desired_option(self, option: int) -> dict:
-        """Set the option (normal/turbo/saver/sleep), keeping mode/volume/humidity."""
-        room = self._room_base()
-        if self.mode is not None:
-            room["mode"] = self.mode
-        room["option"] = int(option)
-        if self.air_volume is not None:
-            room["airVolume"] = self.air_volume
-        hum = self.target_humidity
-        if self.mode in MODES_WITH_HUMIDITY and hum is not None:
-            room["additionalData"] = {"type": HUMIDITY_TYPE, "value": hum}
-        return {"roomController": room}
+        return self._change_mode(self.mode, option, self.air_volume, self.mode)
+
+    def desired_humidity(self, value: int) -> dict:
+        room = self._change_mode(self.mode, self.option or OPTION_NONE, self.air_volume, self.mode)
+        room["roomController"]["additionalData"] = {"type": HUMIDITY_TYPE, "value": int(value)}
+        return room
 
     # --- server-provided metadata -----------------------------------------
 
@@ -433,12 +448,14 @@ def parse_air_sensors_for(sensor_list: list, zone_id=None, monitor_id=None) -> d
     first entry so a single-monitor account still populates.
     """
     chosen = None
+    zone = None if zone_id is None else str(zone_id)
     for sensor in sensor_list or []:
-        if zone_id is not None and sensor.get("zoneId") == zone_id:
+        # zoneId comes back as a string ("1"); compare as strings.
+        if zone is not None and str(sensor.get("zoneId")) == zone:
             chosen = sensor
             break
         monitor = sensor.get("airMonitor") or {}
-        if monitor_id and monitor.get("deviceId") == monitor_id:
+        if monitor_id and str(monitor.get("deviceId")) == str(monitor_id):
             chosen = sensor
             break
     if chosen is None and sensor_list:

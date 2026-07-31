@@ -1,0 +1,8 @@
+{
+  "type": "string",
+  "title": { "en": "Running info", "ko": "운전 정보" },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/capabilities/mdi-air-purifier.svg"
+}

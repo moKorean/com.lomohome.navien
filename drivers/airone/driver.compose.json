@@ -11,6 +11,7 @@
     "navien_airone_option",
     "navien_target_humidity",
     "navien_running_state",
+    "navien_airone_status",
     "measure_temperature",
     "measure_humidity",
     "measure_pm25",

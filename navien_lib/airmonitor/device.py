@@ -74,7 +74,9 @@ class AirMonitorDevice_(device.Device):
 
     async def _poll_once(self) -> None:
         sensors = await self._api.air_sensor(self._parent_seq, self._home_seq)
-        self._sensors = parse_air_sensors_for(sensors, self._zone_id, self._monitor_id)
+        parsed = parse_air_sensors_for(sensors, self._zone_id, self._monitor_id)
+        if parsed:  # merge — an empty poll must not wipe the values
+            self._sensors.update(parsed)
         await self._apply()
 
     async def _apply(self) -> None:

@@ -306,6 +306,7 @@ class AironeDevice_(device.Device):
         u = self._unit
         await self._set("onoff", u.is_on)
         await self._set("navien_running_state", u.running_name(self._language))
+        await self._set("navien_airone_status", u.status_text(self._language))
         await self._set("navien_airone_mode", self._enum(u.mode))
         await self._set("navien_airone_fan", self._enum(u.air_volume))
         await self._set("navien_airone_option", self._enum(u.option))
