@@ -56,7 +56,7 @@
             saving:"로그인 중…", saved:"로그인되었습니다. 집 {0}개를 찾았습니다. 이제 에어원 기기를 추가할 수 있습니다.",
             cleared:"자격증명을 지웠습니다.", need:"아이디와 비밀번호를 모두 입력하세요." }
     };
-    var LANG = "en";
+    var LANG = "ko";   // default Korean; switched to en below if the Homey is English
     function t(k){ return (STR[LANG] && STR[LANG][k]) || STR.en[k] || k; }
     function fmt(s, a){ return s.replace("{0}", a); }
     function applyI18n(){
