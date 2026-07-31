@@ -171,12 +171,14 @@ class NavienMqtt:
     def _on_message(self, _client, _userdata, message):
         import json
 
+        self._log(f"navien mqtt: msg on {message.topic}")
         try:
             payload = json.loads(message.payload.decode("utf-8", "replace"))
         except Exception:
             return
         parsed = self._parser(message.topic, payload)
         if parsed is None:
+            self._log(f"navien mqtt: msg on {message.topic} did not parse (keys={list(payload)})")
             return
         device_id, reported = parsed
         # Hop off the paho thread before touching Homey/asyncio state.

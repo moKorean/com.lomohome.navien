@@ -1,12 +1,27 @@
 {
   "type": "enum",
-  "title": { "en": "Season", "ko": "계절 모드" },
+  "title": {
+    "en": "Season",
+    "ko": "계절 모드"
+  },
   "getable": true,
   "setable": true,
   "uiComponent": "picker",
-  "icon": "/assets/capabilities/season.svg",
+  "icon": "/assets/capabilities/mdi-snowflake.svg",
   "values": [
-    { "id": "0", "title": { "en": "Heating", "ko": "난방" } },
-    { "id": "2", "title": { "en": "Cooling", "ko": "냉방" } }
+    {
+      "id": "0",
+      "title": {
+        "en": "Heating",
+        "ko": "난방"
+      }
+    },
+    {
+      "id": "2",
+      "title": {
+        "en": "Cooling",
+        "ko": "냉방"
+      }
+    }
   ]
 }

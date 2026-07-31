@@ -341,7 +341,7 @@
       "getable": true,
       "setable": true,
       "uiComponent": "picker",
-      "icon": "/assets/capabilities/fan.svg",
+      "icon": "/assets/capabilities/mdi-fan.svg",
       "values": [
         {
           "id": "1",
@@ -382,7 +382,7 @@
       "getable": true,
       "setable": true,
       "uiComponent": "picker",
-      "icon": "/assets/capabilities/mode.svg",
+      "icon": "/assets/capabilities/mdi-air-purifier.svg",
       "values": [
         {
           "id": "4",
@@ -465,7 +465,7 @@
       "getable": true,
       "setable": true,
       "uiComponent": "picker",
-      "icon": "/assets/capabilities/mode.svg",
+      "icon": "/assets/capabilities/mdi-cog-outline.svg",
       "values": [
         {
           "id": "1",
@@ -506,7 +506,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/capabilities/error.svg",
+      "icon": "/assets/capabilities/mdi-alert-circle-outline.svg",
       "decimals": 0
     },
     "navien_filter_usage": {
@@ -518,7 +518,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/capabilities/filter.svg",
+      "icon": "/assets/capabilities/mdi-air-filter.svg",
       "decimals": 0,
       "units": {
         "en": "%",
@@ -534,7 +534,7 @@
       "getable": true,
       "setable": true,
       "uiComponent": "slider",
-      "icon": "/assets/capabilities/level.svg",
+      "icon": "/assets/capabilities/mdi-heat-wave.svg",
       "min": 0,
       "max": 9,
       "step": 1,
@@ -553,7 +553,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/capabilities/mode.svg"
+      "icon": "/assets/capabilities/mdi-cog-outline.svg"
     },
     "navien_pm1": {
       "type": "number",
@@ -564,7 +564,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/capabilities/dust.svg",
+      "icon": "/assets/capabilities/mdi-blur.svg",
       "decimals": 0,
       "units": {
         "en": "µg/m³",
@@ -580,7 +580,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/capabilities/dust.svg",
+      "icon": "/assets/capabilities/mdi-blur.svg",
       "decimals": 0,
       "units": {
         "en": "µg/m³",
@@ -612,7 +612,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/capabilities/state.svg",
+      "icon": "/assets/capabilities/mdi-air-purifier.svg",
       "values": [
         {
           "id": "1",
@@ -646,7 +646,7 @@
       "getable": true,
       "setable": true,
       "uiComponent": "picker",
-      "icon": "/assets/capabilities/season.svg",
+      "icon": "/assets/capabilities/mdi-snowflake.svg",
       "values": [
         {
           "id": "0",
@@ -673,7 +673,7 @@
       "getable": true,
       "setable": true,
       "uiComponent": "slider",
-      "icon": "/assets/capabilities/humidity.svg",
+      "icon": "/assets/capabilities/mdi-air-humidifier.svg",
       "min": 40,
       "max": 70,
       "step": 5,
@@ -692,7 +692,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/capabilities/air.svg",
+      "icon": "/assets/capabilities/mdi-leaf.svg",
       "decimals": 0
     }
   }

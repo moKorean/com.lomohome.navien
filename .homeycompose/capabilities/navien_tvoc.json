@@ -1,9 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "TVOC", "ko": "휘발성유기화합물 (TVOC)" },
+  "title": {
+    "en": "TVOC",
+    "ko": "휘발성유기화합물 (TVOC)"
+  },
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
-  "icon": "/assets/capabilities/air.svg",
+  "icon": "/assets/capabilities/mdi-leaf.svg",
   "decimals": 0
 }

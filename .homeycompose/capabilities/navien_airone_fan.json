@@ -1,14 +1,41 @@
 {
   "type": "enum",
-  "title": { "en": "Fan speed", "ko": "풍량" },
+  "title": {
+    "en": "Fan speed",
+    "ko": "풍량"
+  },
   "getable": true,
   "setable": true,
   "uiComponent": "picker",
-  "icon": "/assets/capabilities/fan.svg",
+  "icon": "/assets/capabilities/mdi-fan.svg",
   "values": [
-    { "id": "1", "title": { "en": "Low", "ko": "미풍" } },
-    { "id": "2", "title": { "en": "Medium", "ko": "약풍" } },
-    { "id": "3", "title": { "en": "High", "ko": "강풍" } },
-    { "id": "4", "title": { "en": "Auto", "ko": "자동" } }
+    {
+      "id": "1",
+      "title": {
+        "en": "Low",
+        "ko": "미풍"
+      }
+    },
+    {
+      "id": "2",
+      "title": {
+        "en": "Medium",
+        "ko": "약풍"
+      }
+    },
+    {
+      "id": "3",
+      "title": {
+        "en": "High",
+        "ko": "강풍"
+      }
+    },
+    {
+      "id": "4",
+      "title": {
+        "en": "Auto",
+        "ko": "자동"
+      }
+    }
   ]
 }

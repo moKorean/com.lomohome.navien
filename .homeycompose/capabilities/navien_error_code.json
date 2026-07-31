@@ -1,9 +1,12 @@
 {
   "type": "number",
-  "title": { "en": "Error code", "ko": "오류 코드" },
+  "title": {
+    "en": "Error code",
+    "ko": "오류 코드"
+  },
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
-  "icon": "/assets/capabilities/error.svg",
+  "icon": "/assets/capabilities/mdi-alert-circle-outline.svg",
   "decimals": 0
 }

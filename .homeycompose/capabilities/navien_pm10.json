@@ -1,10 +1,16 @@
 {
   "type": "number",
-  "title": { "en": "PM10", "ko": "미세먼지 (PM10)" },
+  "title": {
+    "en": "PM10",
+    "ko": "미세먼지 (PM10)"
+  },
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
-  "icon": "/assets/capabilities/dust.svg",
+  "icon": "/assets/capabilities/mdi-blur.svg",
   "decimals": 0,
-  "units": { "en": "µg/m³", "ko": "㎍/㎥" }
+  "units": {
+    "en": "µg/m³",
+    "ko": "㎍/㎥"
+  }
 }

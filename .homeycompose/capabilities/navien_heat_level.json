@@ -1,13 +1,19 @@
 {
   "type": "number",
-  "title": { "en": "Heat level", "ko": "난방 단계" },
+  "title": {
+    "en": "Heat level",
+    "ko": "난방 단계"
+  },
   "getable": true,
   "setable": true,
   "uiComponent": "slider",
-  "icon": "/assets/capabilities/level.svg",
+  "icon": "/assets/capabilities/mdi-heat-wave.svg",
   "min": 0,
   "max": 9,
   "step": 1,
   "decimals": 0,
-  "units": { "en": "level", "ko": "단계" }
+  "units": {
+    "en": "level",
+    "ko": "단계"
+  }
 }

@@ -1,10 +1,16 @@
 {
   "type": "number",
-  "title": { "en": "Filter usage", "ko": "필터 사용률" },
+  "title": {
+    "en": "Filter usage",
+    "ko": "필터 사용률"
+  },
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
-  "icon": "/assets/capabilities/filter.svg",
+  "icon": "/assets/capabilities/mdi-air-filter.svg",
   "decimals": 0,
-  "units": { "en": "%", "ko": "%" }
+  "units": {
+    "en": "%",
+    "ko": "%"
+  }
 }

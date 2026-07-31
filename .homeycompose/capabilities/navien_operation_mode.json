@@ -1,8 +1,11 @@
 {
   "type": "string",
-  "title": { "en": "Operation", "ko": "운전 상태" },
+  "title": {
+    "en": "Operation",
+    "ko": "운전 상태"
+  },
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",
-  "icon": "/assets/capabilities/mode.svg"
+  "icon": "/assets/capabilities/mdi-cog-outline.svg"
 }
