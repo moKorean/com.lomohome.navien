@@ -28,15 +28,12 @@ from navien_lib.const import (
     OPTION_TURBO,
     POLL_INTERVAL_S,
     SETTING_HOME_SEQ,
-    SETTING_PASSWORD,
-    SETTING_USERNAME,
     STORE_DEVICE_ID,
     STORE_DEVICE_SEQ,
     STORE_MODEL_CODE,
     STORE_PHYSICAL_ID,
 )
 from navien_lib.navien.airone import AironeDevice
-from navien_lib.navien.api import NavienApi
 from navien_lib.navien.mqtt import NavienMqtt
 
 # capability -> how to read it from the model. Sensors that come from the air-quality
@@ -101,11 +98,9 @@ class AironeDevice_(device.Device):
         self._language = await compat.ui_language(self.homey)
 
         self._home_seq = int(await compat.setting_get(self.homey, SETTING_HOME_SEQ) or 0)
-        self._api = NavienApi(
-            username=await compat.setting_get(self.homey, SETTING_USERNAME),
-            password=await compat.setting_get(self.homey, SETTING_PASSWORD),
-            log=self.log,
-        )
+        # The Navien session is shared app-wide (one session per account), acquired in
+        # _run. Kept as None until then.
+        self._api = None
         # A model seeded with our identifiers, so control payloads carry them even
         # before the first report arrives.
         self._unit = AironeDevice(
@@ -149,13 +144,7 @@ class AironeDevice_(device.Device):
 
     async def _run(self) -> None:
         """Log in, start MQTT push, then poll REST forever as the fallback."""
-        try:
-            await self._api.login()
-        except Exception as exc:
-            self.log(f"login failed: {exc}")
-            await self._safe_unavailable("로그인에 실패했습니다. 앱 설정에서 계정을 확인하세요.")
-            return
-
+        await self._acquire_api()
         await self._start_mqtt()
         try:
             await self._poll_once(initial=True)
@@ -172,6 +161,25 @@ class AironeDevice_(device.Device):
                 raise
             except Exception as exc:
                 self.log(f"poll failed: {exc}")
+
+    async def _acquire_api(self) -> None:
+        """Get the app-wide shared Navien session, retrying rather than giving up.
+
+        One session per account means devices must not each hold their own login, so
+        the app owns it (`shared_api`). A transient failure (e.g. a 403 while the phone
+        app is holding the session) just backs off and retries — the device stays
+        unavailable until it's in.
+        """
+        delay = 5
+        while True:
+            try:
+                self._api = await compat.shared_api(self.homey)
+                return
+            except Exception as exc:
+                self.log(f"login pending ({exc}); retrying in {delay}s")
+                await self._safe_unavailable("나비엔 서버 로그인 재시도 중…")
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, 120)
 
     async def _ensure_mqtt(self) -> None:
         """Keep realtime push alive: reconnect with fresh credentials if it dropped.

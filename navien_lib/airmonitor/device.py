@@ -13,14 +13,11 @@ from navien_lib import compat
 from navien_lib.const import (
     POLL_INTERVAL_S,
     SETTING_HOME_SEQ,
-    SETTING_PASSWORD,
-    SETTING_USERNAME,
     STORE_DEVICE_SEQ,
     STORE_MONITOR_ID,
     STORE_ZONE_ID,
 )
 from navien_lib.navien.airone import parse_air_sensors_for
-from navien_lib.navien.api import NavienApi
 
 # AirMonitor uses the standard measure_pm10 for 미세먼지 (AirOne uses navien_pm10); map
 # both so whichever capability the driver actually has gets populated. _set() skips any
@@ -51,11 +48,9 @@ class AirMonitorDevice_(device.Device):
         self._monitor_id = str(store.get(STORE_MONITOR_ID) or "")
         self._zone_id = store.get(STORE_ZONE_ID)
         self._home_seq = int(await compat.setting_get(self.homey, SETTING_HOME_SEQ) or 0)
-        self._api = NavienApi(
-            username=await compat.setting_get(self.homey, SETTING_USERNAME),
-            password=await compat.setting_get(self.homey, SETTING_PASSWORD),
-            log=self.log,
-        )
+        # The Navien session is shared app-wide (one session per account); acquired in
+        # _run.
+        self._api = None
         self._sensors: dict = {}
         self._poll_task = asyncio.create_task(self._run())
 
@@ -63,13 +58,20 @@ class AirMonitorDevice_(device.Device):
         if self._poll_task is not None:
             self._poll_task.cancel()
 
+    async def _acquire_api(self) -> None:
+        delay = 5
+        while True:
+            try:
+                self._api = await compat.shared_api(self.homey)
+                return
+            except Exception as exc:
+                self.log(f"login pending ({exc}); retrying in {delay}s")
+                await self._safe_unavailable("나비엔 서버 로그인 재시도 중…")
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, 120)
+
     async def _run(self) -> None:
-        try:
-            await self._api.login()
-        except Exception as exc:
-            self.log(f"login failed: {exc}")
-            await self._safe_unavailable("로그인에 실패했습니다. 앱 설정에서 계정을 확인하세요.")
-            return
+        await self._acquire_api()
         await self._poll_once()
         await self._safe_available()
         while True:

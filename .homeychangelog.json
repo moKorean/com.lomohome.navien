@@ -18,5 +18,9 @@
   "0.5.2": {
     "en": "Fixes a case where a status reply could blank the operating mode and disable the fan control. TVOC now shows in ppb, and units without an air-quality sensor no longer make a needless air-quality request.",
     "ko": "상태 응답 때문에 운전 모드가 비고 풍량 조절이 막히던 문제를 고쳤습니다. TVOC를 ppb 단위로 표시하고, 공기질 센서가 없는 기기에는 불필요한 공기질 요청을 하지 않습니다."
+  },
+  "0.5.3": {
+    "en": "All devices on an account now share one login instead of each holding their own, which was making them bounce each other off the single allowed session and stop updating. A login that fails now retries with backoff instead of giving up.",
+    "ko": "한 계정의 모든 기기가 각자 로그인하지 않고 로그인 하나를 공유합니다. 이전에는 계정당 허용된 세션 하나를 서로 밀어내며 정보가 안 올라오던 문제가 있었습니다. 로그인 실패 시 포기하지 않고 점점 간격을 늘려 재시도합니다."
   }
 }

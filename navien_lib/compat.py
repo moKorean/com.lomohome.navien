@@ -58,6 +58,27 @@ async def language(homey, default: str = "en") -> str:
     return default
 
 
+async def shared_api(homey):
+    """Return the app-wide shared NavienApi (one session per account), logging in if
+    needed. Falls back to a private session if the app object can't be reached, so a
+    device still works on a runtime that doesn't expose `homey.app`."""
+    app = getattr(homey, "app", None)
+    getter = getattr(app, "shared_api", None) if app is not None else None
+    if getter is not None:
+        return await resolve(getter())
+
+    from .const import SETTING_PASSWORD, SETTING_USERNAME
+    from .navien.api import NavienApi
+
+    api = NavienApi(
+        username=await setting_get(homey, SETTING_USERNAME),
+        password=await setting_get(homey, SETTING_PASSWORD),
+        log=getattr(app, "log", print) if app is not None else print,
+    )
+    await api.login()
+    return api
+
+
 def flow_card(homey, kind: str, card_id: str):
     """Fetch a flow card, tolerating either the snake_case or camelCase SDK spelling.
 
