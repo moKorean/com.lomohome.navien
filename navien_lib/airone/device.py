@@ -112,7 +112,10 @@ class AironeDevice_(device.Device):
             return
 
         await self._start_mqtt()
-        await self._poll_once(initial=True)
+        try:
+            await self._poll_once(initial=True)
+        except Exception as exc:
+            self.log(f"initial poll failed: {exc}")
         await self._safe_available()
 
         while True:

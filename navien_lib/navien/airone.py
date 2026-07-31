@@ -208,18 +208,17 @@ class AironeDevice:
 
     @property
     def mode(self):
-        v = _first(self._room, "mode")
-        return None if v is None else int(v)
+        # roomController.mode is an int in live state, but a metadata list in the
+        # device-list response before MQTT overwrites it — tolerate both.
+        return _as_int(_first(self._room, "mode"))
 
     @property
     def option(self):
-        v = _first(self._room, "option")
-        return None if v is None else int(v)
+        return _as_int(_first(self._room, "option"))
 
     @property
     def air_volume(self):
-        v = _first(self._room, "airVolume")
-        return None if v is None else int(v)
+        return _as_int(_first(self._room, "airVolume"))
 
     @property
     def target_humidity(self):
