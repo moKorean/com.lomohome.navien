@@ -9,19 +9,23 @@ Two jobs:
    (250x175 / 500x350 / 1000x700); driver images are square (75 / 500 / 1000) on a
    white background, per guideline 1.4.
 
-2. Draw the app + device icons as monochrome line-art SVGs. Homey renders icon.svg as
-   a mask (it recolours the shapes), so these are transparent-background line drawings,
-   the same convention as com.lomohome.localthings. Each device icon is traced from the
-   real Navien hardware shown in the docs/ photos:
+2. Draw the icons as monochrome SVGs. Homey renders icon.svg as a mask (it recolours the
+   shapes), so these are transparent-background monochrome art that works on any tint.
+     - App        — the Navien wordmark, vector-traced from docs/Navien_CI.png
      - AirOne     — ceiling ERV box with duct ports
      - AirMonitor — upright fabric unit with a dot-matrix display and side tab
      - Mate       — quilted sleep mat with a crescent moon
+   The device icons are drawn from the real Navien hardware shown in the docs/ photos.
 
-Needs `sips` (macOS) for the raster resize and `rsvg-convert` only if you want to
-preview the SVGs; the committed files are the SVGs and PNGs it writes.
+Needs `sips` (macOS) for the raster resize. The app icon also needs `rsvg-convert` and
+`potrace` (brew install potrace) to vectorise the logo; the device icons are pure SVG.
+The committed files are the SVGs and PNGs it writes.
 """
 
+import base64
+import re
 import subprocess
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -72,14 +76,38 @@ def _write(path: Path, body: str) -> None:
 
 
 def _app_icon() -> str:
-    # Three flowing air lines with a curl — "air" for the whole app (환기/제습/청정).
-    return f'''  <g fill="none" stroke="{INK}" stroke-width="54"
-     stroke-linecap="round" stroke-linejoin="round">
-    <path d="M232 372 h366 a108 108 0 1 0 -108 -108"/>
-    <path d="M198 496 h456 a110 110 0 1 1 -110 110"/>
-    <path d="M232 620 h276 a92 92 0 1 1 -92 92"/>
-  </g>
-'''
+    # The Navien wordmark, vector-traced from the CI logo so it stays crisp at any size
+    # and, being monochrome, reads on any background Homey tints it with.
+    logo = DOCS / "Navien_CI.png"
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        # 1. Flatten the transparent logo onto white at 4x for a clean trace.
+        b64 = base64.b64encode(logo.read_bytes()).decode()
+        wrap = tmp / "wrap.svg"
+        wrap.write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="528" height="136" '
+            'viewBox="0 0 528 136"><rect width="528" height="136" fill="#fff"/>'
+            f'<image width="528" height="136" href="data:image/png;base64,{b64}"/></svg>'
+        )
+        white = tmp / "white.png"
+        subprocess.run(["rsvg-convert", "-w", "2112", "-h", "544", str(wrap),
+                        "-o", str(white)], check=True)
+        bmp = tmp / "white.bmp"
+        subprocess.run(["sips", "-s", "format", "bmp", str(white), "--out", str(bmp)],
+                       check=True, stdout=subprocess.DEVNULL)
+        traced = tmp / "trace.svg"
+        subprocess.run(["potrace", str(bmp), "-s", "-o", str(traced),
+                        "-k", "0.55", "--tight"], check=True)
+        svg = traced.read_text()
+    vb = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg)
+    lw, lh = float(vb.group(1)), float(vb.group(2))
+    group = re.search(r"(<g\b.*?</g>)", svg, re.S).group(1)
+    group = re.sub(r'fill="#[0-9a-fA-F]+"', f'fill="{INK}"', group, count=1)
+    target_w = 820.0
+    s = target_w / lw
+    tx, ty = (960 - target_w) / 2, (960 - lh * s) / 2
+    return (f'  <g transform="translate({tx:.2f} {ty:.2f}) scale({s:.6f})">\n'
+            f'    {group}\n  </g>\n')
 
 
 def _airone_icon() -> str:

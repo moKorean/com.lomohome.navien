@@ -15,7 +15,7 @@
 <div id="navien-start">
   <div class="card">
     <p id="msg"><span class="spinner"></span></p>
-    <button id="login" style="display:none">로그인</button>
+    <button id="recheck" style="display:none">다시 확인</button>
   </div>
 </div>
 
@@ -39,27 +39,38 @@
 
   function flow() {
     var msg = document.getElementById("msg");
-    var btn = document.getElementById("login");
-    var settled = false;
-    function toLogin(reason) {
-      if (settled) return;
-      settled = true;
+    var btn = document.getElementById("recheck");
+    var done = false;
+
+    // Login happens only in the app settings — this pair view just checks whether an
+    // account is already saved and, if so, goes straight to the device list.
+    function toList() { if (done) return; done = true; H.showView("list_devices"); }
+
+    function guide(reason) {
+      if (done) return;
       msg.innerHTML = "";
       var line = document.createElement("div");
-      line.textContent = reason || "나비엔 계정 로그인이 필요합니다.";
+      line.style.cssText = "font-weight:600;";
+      line.textContent = reason || "먼저 앱 설정에서 나비엔 계정으로 로그인하세요.";
       var hint = document.createElement("div");
-      hint.style.cssText = "margin-top:8px;font-size:13px;color:#8a8a92;";
-      hint.textContent = "아래에서 로그인하면 계정이 저장되어 다음부터는 바로 진행됩니다. (앱 설정에서 미리 로그인해 두어도 됩니다.)";
+      hint.style.cssText = "margin-top:10px;font-size:13px;color:#8a8a92;line-height:1.55;";
+      hint.textContent = "Homey 앱에서 이 앱(나비엔 스마트 커뮤니티)의 설정을 열어 나비엔 스마트 계정으로 로그인한 뒤, 이 화면으로 돌아와 ‘다시 확인’을 눌러 주세요.";
       msg.appendChild(line); msg.appendChild(hint);
       btn.style.display = "inline-block";
-      btn.onclick = function () { H.showView("login_credentials"); };
+      btn.onclick = check;
     }
-    function toList() { if (settled) return; settled = true; H.showView("list_devices"); }
 
-    setTimeout(function () { toLogin("나비엔 계정 로그인이 필요합니다."); }, 8000);
-    Promise.resolve(H.emit("check_session", {}))
-      .then(function (res) { if (res && res.ready) { toList(); } else { toLogin(res && res.reason); } })
-      .catch(function (err) { toLogin(String((err && err.message) || err)); });
+    function check() {
+      btn.style.display = "none";
+      msg.innerHTML = '<span class="spinner"></span>';
+      Promise.resolve(H.emit("check_session", {}))
+        .then(function (res) { if (res && res.ready) { toList(); } else { guide(res && res.reason); } })
+        .catch(function (err) { guide(String((err && err.message) || err)); });
+    }
+
+    // Safety net: if check_session never answers, show the guidance instead of spinning.
+    setTimeout(function () { guide(); }, 8000);
+    check();
   }
 
   function onHomeyReady(homeyObj) { run(homeyObj); }

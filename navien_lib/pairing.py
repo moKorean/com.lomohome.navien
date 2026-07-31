@@ -89,8 +89,18 @@ async def _login_handler(flow, data, kwargs) -> bool:
     return True
 
 
+_NEED_LOGIN = "먼저 앱 설정에서 나비엔 계정으로 로그인하세요."
+
+
 def install(driver, session, build_devices) -> None:
-    """Wire the standard pair handlers onto `session`."""
+    """Wire the pair handlers onto `session`.
+
+    Login is intentionally *not* part of pairing — the built-in login_credentials
+    template behaved inconsistently (accepting invalid input and advancing anyway), so
+    the account is entered once in the app settings and pairing only reuses it. The
+    start view checks `check_session` and, when an account is saved, jumps to the device
+    list; otherwise it tells the user to sign in from the app settings.
+    """
     flow = _Flow(driver)
 
     async def on_check_session(data=None, **kwargs) -> dict:
@@ -98,31 +108,7 @@ def install(driver, session, build_devices) -> None:
         password = await compat.setting_get(driver.homey, SETTING_PASSWORD)
         ready = bool(username and password)
         driver.log(f"pair: check_session ready={ready}")
-        return {"ready": ready, "reason": "" if ready else "먼저 나비엔 계정으로 로그인하세요."}
-
-    async def on_login(data=None, **kwargs) -> bool:
-        return await _login_handler(flow, data, kwargs)
-
-    async def on_list_homes(data=None, **kwargs) -> list:
-        # Bounded so the choose-home view never spins forever: a raised handler can leave
-        # the webview's emit promise pending, so on any failure return [] instead — the
-        # view then advances to list_devices, which surfaces errors through its template.
-        try:
-            await asyncio.wait_for(flow.ensure(), timeout=LOGIN_TIMEOUT_S)
-        except Exception as exc:
-            driver.log(f"pair: list_homes ensure failed: {exc}")
-            return []
-        driver.log(f"pair: list_homes -> {len(flow.homes)} home(s)")
-        return [{"seq": seq, "name": name} for seq, name in flow.homes]
-
-    async def on_select_home(data=None, **kwargs) -> bool:
-        seq = (data or {}).get("seq")
-        if seq is None:
-            return False
-        flow.home_seq = int(seq)
-        await compat.setting_set(driver.homey, SETTING_HOME_SEQ, str(flow.home_seq))
-        driver.log(f"pair: home selected {flow.home_seq}")
-        return True
+        return {"ready": ready, "reason": "" if ready else _NEED_LOGIN}
 
     async def on_list_devices(data=None, **kwargs) -> list:
         try:
@@ -131,9 +117,7 @@ def install(driver, session, build_devices) -> None:
             raise Exception(_SLOW_LOGIN) from None
         except Exception as exc:
             driver.log(f"pair: list_devices ensure failed: {exc}")
-            raise Exception(
-                "먼저 나비엔 계정으로 로그인하세요. (앱 설정 또는 이 화면의 로그인)"
-            ) from exc
+            raise Exception(_NEED_LOGIN) from exc
         devices = await asyncio.wait_for(
             build_devices(flow.api, flow.home_seq), timeout=LOGIN_TIMEOUT_S
         )
@@ -141,9 +125,6 @@ def install(driver, session, build_devices) -> None:
         return devices
 
     session.set_handler("check_session", on_check_session)
-    session.set_handler("login", on_login)
-    session.set_handler("list_homes", on_list_homes)
-    session.set_handler("select_home", on_select_home)
     session.set_handler("list_devices", on_list_devices)
 
 
