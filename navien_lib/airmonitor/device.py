@@ -9,8 +9,8 @@ import asyncio
 
 from homey import device
 
-from lib import compat
-from lib.const import (
+from navien_lib import compat
+from navien_lib.const import (
     POLL_INTERVAL_S,
     SETTING_HOME_SEQ,
     SETTING_PASSWORD,
@@ -19,8 +19,8 @@ from lib.const import (
     STORE_MONITOR_ID,
     STORE_ZONE_ID,
 )
-from lib.navien.airone import parse_air_sensors_for
-from lib.navien.api import NavienApi
+from navien_lib.navien.airone import parse_air_sensors_for
+from navien_lib.navien.api import NavienApi
 
 _SENSOR_KINDS = {
     "measure_temperature": "temperature",

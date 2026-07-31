@@ -1,11 +1,11 @@
-"""AirMonitor driver export shim. Implementation in lib/airmonitor/driver.py."""
+"""AirMonitor driver export shim. Implementation in navien_lib/airmonitor/driver.py."""
 
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[2]))
 
-from lib.airmonitor.driver import AirMonitorDriver
+from navien_lib.airmonitor.driver import AirMonitorDriver
 
 
 class Driver(AirMonitorDriver):

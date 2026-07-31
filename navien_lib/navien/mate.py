@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from lib.const import (
+from navien_lib.const import (
     CAPACITY_DOUBLE,
     MAT_MODE_NAMES,
     MAT_MODES_ON,
@@ -32,7 +32,7 @@ from lib.const import (
     ZONE_RIGHT,
     ZONE_SINGLE,
 )
-from lib.navien.airone import deep_merge
+from navien_lib.navien.airone import deep_merge
 
 
 def _dig(d, *path, default=None):

@@ -1,21 +1,21 @@
 """Pairing for Navien AirOne units.
 
 Signs into the Navien account (reusing saved credentials when present) and lists the
-AirOne devices on it. The shared pairing flow lives in lib/pairing.py; this driver
+AirOne devices on it. The shared pairing flow lives in navien_lib/pairing.py; this driver
 only maps the raw device list to AirOne device payloads.
 """
 
 from homey import driver
 
-from lib import pairing
-from lib.const import (
+from navien_lib import pairing
+from navien_lib.const import (
     STORE_DEVICE_ID,
     STORE_DEVICE_SEQ,
     STORE_MODEL_CODE,
     STORE_PHYSICAL_ID,
     STORE_SERVICE_CODE,
 )
-from lib.navien.airone import AironeDevice
+from navien_lib.navien.airone import AironeDevice
 
 
 class AironeDriver(driver.Driver):

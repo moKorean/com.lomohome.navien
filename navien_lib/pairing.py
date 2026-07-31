@@ -13,9 +13,9 @@ visible error rather than an endless spinner.
 
 import asyncio
 
-from lib import compat
-from lib.const import SETTING_HOME_SEQ, SETTING_PASSWORD, SETTING_USERNAME
-from lib.navien.api import NavienApi, NavienAuthError
+from navien_lib import compat
+from navien_lib.const import SETTING_HOME_SEQ, SETTING_PASSWORD, SETTING_USERNAME
+from navien_lib.navien.api import NavienApi, NavienAuthError
 
 LOGIN_TIMEOUT_S = 25.0
 _SLOW_LOGIN = "로그인 응답이 지연됩니다. 네트워크를 확인하고 다시 시도하세요."

@@ -11,8 +11,8 @@ import asyncio
 
 from homey import device
 
-from lib import compat
-from lib.const import (
+from navien_lib import compat
+from navien_lib.const import (
     POLL_INTERVAL_S,
     SERVICE_MATE,
     SETTING_HOME_SEQ,
@@ -23,9 +23,9 @@ from lib.const import (
     STORE_MODEL_CODE,
     ZONE_SINGLE,
 )
-from lib.navien.api import NavienApi
-from lib.navien.mate import MateDevice, extract_mate_reported
-from lib.navien.mqtt import NavienMqtt
+from navien_lib.navien.api import NavienApi
+from navien_lib.navien.mate import MateDevice, extract_mate_reported
+from navien_lib.navien.mqtt import NavienMqtt
 
 
 def _split(cap: str):

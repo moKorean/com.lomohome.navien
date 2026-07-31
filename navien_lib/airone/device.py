@@ -13,8 +13,8 @@ import asyncio
 
 from homey import device
 
-from lib import compat
-from lib.const import (
+from navien_lib import compat
+from navien_lib.const import (
     AIR_VOLUME_NAMES,
     AIRONE_CMD_CHANGE_MODE,
     AIRONE_CMD_POWER,
@@ -32,9 +32,9 @@ from lib.const import (
     STORE_MODEL_CODE,
     STORE_PHYSICAL_ID,
 )
-from lib.navien.airone import AironeDevice
-from lib.navien.api import NavienApi
-from lib.navien.mqtt import NavienMqtt
+from navien_lib.navien.airone import AironeDevice
+from navien_lib.navien.api import NavienApi
+from navien_lib.navien.mqtt import NavienMqtt
 
 # capability -> how to read it from the model. Sensors that come from the air-quality
 # REST call read from `unit.air_sensors`; the rest read from the MQTT-reported state.

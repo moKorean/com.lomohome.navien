@@ -20,8 +20,8 @@ import time
 import urllib.parse
 import uuid
 
-from lib.const import AWS_REGION, AWS_SERVICE, IOT_ENDPOINT, IOT_PORT
-from lib.navien import tls
+from navien_lib.const import AWS_REGION, AWS_SERVICE, IOT_ENDPOINT, IOT_PORT
+from navien_lib.navien import tls
 
 
 def _sign(key: bytes, msg: str) -> bytes:

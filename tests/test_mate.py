@@ -6,8 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from lib.navien import mate
-from lib.navien.api import NavienApi
+from navien_lib.navien import mate
+from navien_lib.navien.api import NavienApi
 
 
 def _single_temp():

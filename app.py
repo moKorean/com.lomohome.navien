@@ -18,8 +18,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from homey import app as homey_app
 
-from lib import compat, selfcheck
-from lib.const import SETTING_PAIR_ENV, SETTING_UI_LANGUAGE
+from navien_lib import compat, selfcheck
+from navien_lib.const import SETTING_PAIR_ENV, SETTING_UI_LANGUAGE
 
 
 class NavienApp(homey_app.App):

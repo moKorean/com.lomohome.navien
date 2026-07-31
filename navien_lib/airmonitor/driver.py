@@ -8,9 +8,9 @@ monitor's sensor zone.
 
 from homey import driver
 
-from lib import pairing
-from lib.const import STORE_DEVICE_SEQ, STORE_MONITOR_ID, STORE_ZONE_ID
-from lib.navien.airone import AironeDevice
+from navien_lib import pairing
+from navien_lib.const import STORE_DEVICE_SEQ, STORE_MONITOR_ID, STORE_ZONE_ID
+from navien_lib.navien.airone import AironeDevice
 
 
 class AirMonitorDriver(driver.Driver):

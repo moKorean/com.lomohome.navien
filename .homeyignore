@@ -14,3 +14,16 @@ uv.lock
 README.md
 README.txt
 README.ko.txt
+
+# Dev/build artifacts — must never ship in the app bundle. A packaging egg-info in
+# the app root makes the runtime resolve `lib` as a namespace package and breaks
+# `from lib import compat`. pyproject/venv are dev-only (the runtime uses app.json's
+# pythonPackages).
+.venv/
+*.egg-info/
+pyproject.toml
+env.json
+.env
+*.pem
+*.key
+certs/

@@ -33,7 +33,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from http.cookiejar import CookieJar
 
-from lib.const import (
+from navien_lib.const import (
     AIRONE_TOPIC_FMT,
     API_URL,
     CODE_NOT_AUTHORIZED,
@@ -42,7 +42,7 @@ from lib.const import (
     LOGIN_URL,
     USER_AGENT,
 )
-from lib.navien import tls
+from navien_lib.navien import tls
 
 
 class NavienAuthError(Exception):

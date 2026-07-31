@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from lib.const import (
+from navien_lib.const import (
     AIR_VOLUME_NAMES,
     AIRONE_SENSOR_ALIASES,
     AIRONE_V2_MIN_MODEL_CODE,

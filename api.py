@@ -11,8 +11,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from lib import compat
-from lib.const import (
+from navien_lib import compat
+from navien_lib.const import (
     API_URL,
     IOT_ENDPOINT,
     SETTING_HOME_SEQ,
@@ -20,7 +20,7 @@ from lib.const import (
     SETTING_UI_LANGUAGE,
     SETTING_USERNAME,
 )
-from lib.navien.api import NavienApi, NavienAuthError
+from navien_lib.navien.api import NavienApi, NavienAuthError
 
 
 def _body(kwargs: dict) -> dict:

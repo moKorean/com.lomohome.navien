@@ -32,7 +32,7 @@ def _paho():
 
 
 def _ssl_context():
-    from lib.navien import tls
+    from navien_lib.navien import tls
 
     cafile = tls.ca_file()
     ctx = tls.ssl_context()

@@ -1,6 +1,6 @@
 """Pairing for Navien sleep mats.
 
-Reuses the shared account login (lib/pairing.py) and lists the mats on the account.
+Reuses the shared account login (navien_lib/pairing.py) and lists the mats on the account.
 Each mat's Homey capability set is computed from its model (single vs left/right zones,
 temperature vs level type, four-season, power/safe flags) and shipped in the device
 payload, so the device is created with exactly the capabilities that unit supports.
@@ -8,14 +8,14 @@ payload, so the device is created with exactly the capabilities that unit suppor
 
 from homey import driver
 
-from lib import pairing
-from lib.const import (
+from navien_lib import pairing
+from navien_lib.const import (
     STORE_DEVICE_ID,
     STORE_DEVICE_SEQ,
     STORE_MODEL_CODE,
     STORE_SERVICE_CODE,
 )
-from lib.navien.mate import MateDevice
+from navien_lib.navien.mate import MateDevice
 
 
 class MateDriver(driver.Driver):

@@ -1,11 +1,11 @@
-"""AirOne device export shim. Implementation in lib/airone/device.py."""
+"""AirOne device export shim. Implementation in navien_lib/airone/device.py."""
 
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[2]))
 
-from lib.airone.device import AironeDevice_
+from navien_lib.airone.device import AironeDevice_
 
 
 class Device(AironeDevice_):
