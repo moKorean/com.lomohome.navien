@@ -38,5 +38,9 @@
   "0.5.7": {
     "en": "Running state and operating info now refresh right away when the state changes instead of lagging after a command. While auto-drying, the operating info shows just 'Auto drying'.",
     "ko": "운전 상태와 운전 정보가 명령 뒤에 늦게 반영되지 않고 상태가 바뀌는 즉시 갱신됩니다. 자동 건조중일 때는 운전 정보에 '자동 건조중'만 표시합니다."
+  },
+  "0.5.8": {
+    "en": "Sleep mats get automation cards too: set power, season (heating/cooling), per-zone temperature and heat level, plus power/season conditions. New device icons.",
+    "ko": "숙면매트도 자동화 카드를 지원합니다: 전원·계절(난방/냉방)·구역별 온도/난방 단계 설정과 전원·계절 조건. 기기 아이콘을 새로 적용했습니다."
   }
 }

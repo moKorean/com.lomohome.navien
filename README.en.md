@@ -34,8 +34,9 @@ The Homey port itself is © 2026 Geunwon Mo.
 - **AirMonitor** — paired as its own sensor device.
 - **Sleep mats** — power, per-zone temperature (0.5 °C) and heat level, single/double,
   seasonal heating/cooling, running/error state and over-temperature warning.
-- **Flow** — any reading can be a condition; operating mode, fan speed, power and desired
-  humidity are actions.
+- **Flow** — automate both appliances: AirOne operating mode / fan speed / power /
+  desired humidity, and sleep-mat power / season / per-zone temperature and heat level,
+  as actions, with matching condition cards.
 - **Mode-aware guidance** — a setting that doesn't apply to the current mode (e.g. humidity
   outside Dehumidify) is rejected with a toast that explains why, and the control reverts.
 - **Shared account login** — all devices on the account share one session (Navien allows

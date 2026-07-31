@@ -1,22 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 960" width="960" height="960">
-  <g fill="none" stroke="#111111" stroke-width="34"
-     stroke-linecap="round" stroke-linejoin="round">
-    <path d="M150 400 H650 V760 H150 Z"/>
-    <path d="M150 400 L300 290 H800 L650 400"/>
-    <path d="M650 400 L800 290 V650 L650 760"/>
-    <line x1="150" y1="550" x2="650" y2="550"/>
-  </g>
-  <g fill="#111111">
-    <circle cx="270" cy="655" r="24"/>
-    <circle cx="530" cy="655" r="24"/>
-  </g>
-  <g fill="none" stroke="#111111" stroke-width="30"
-     stroke-linecap="round" stroke-linejoin="round">
-    <ellipse cx="380" cy="260" rx="46" ry="17"/>
-    <path d="M334 260 V330"/>
-    <path d="M426 260 V330"/>
-    <ellipse cx="580" cy="260" rx="46" ry="17"/>
-    <path d="M534 260 V330"/>
-    <path d="M626 260 V330"/>
-  </g>
+<style>
+  path, rect, line, circle, ellipse { fill: none; stroke: #000; stroke-linecap: round; stroke-linejoin: round; }
+  .o { stroke-width: 40; }
+  .d { stroke-width: 20; }
+  .s { stroke-width: 10; }
+  .m { stroke-width: 16; }
+</style>
+<clipPath id="duct-halo" clipPathUnits="userSpaceOnUse"><path clip-rule="evenodd" fill-rule="evenodd" d="M -200 -200 L 1200 -200 L 1200 1200 L -200 1200 Z M 100 184 L 245 184 L 245 376 L 100 376 Z M 100 604 L 245 604 L 245 796 L 100 796 Z"/></clipPath>
+<clipPath id="tip-clip" clipPathUnits="userSpaceOnUse"><rect x="838" y="-200" width="400" height="1400"/></clipPath>
+<g clip-path="url(#duct-halo)"><path class="o" d="M 220 140 L 820 140 L 820 840 L 220 840 Z"/>
+<line x1="338" y1="152" x2="338" y2="828" class="d"/>
+<rect x="400" y="240" width="380" height="190" rx="35" class="d"/></g>
+<path class="o" d="M 232 206 L 155 206 A 30 74 0 0 0 155 354 L 232 354"/>
+<ellipse cx="155" cy="280" rx="30" ry="74" class="d"/>
+<path class="o" d="M 238 214 A 26 66 0 0 1 238 346"/>
+<path class="o" d="M 232 626 L 155 626 A 30 74 0 0 0 155 774 L 232 774"/>
+<ellipse cx="155" cy="700" rx="30" ry="74" class="d"/>
+<path class="o" d="M 238 634 A 26 66 0 0 1 238 766"/>
+<g clip-path="url(#tip-clip)"><path class="o" d="M 810 206 L 848 206 A 20 74 0 0 1 848 354 L 810 354"/>
+<path class="o" d="M 810 626 L 848 626 A 20 74 0 0 1 848 774 L 810 774"/></g>
 </svg>

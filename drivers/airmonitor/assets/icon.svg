@@ -1,23 +1,42 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 960" width="960" height="960">
-  <g fill="none" stroke="#111111" stroke-width="34"
-     stroke-linecap="round" stroke-linejoin="round">
-    <rect x="330" y="210" width="250" height="560" rx="92"/>
-    <path d="M422 210 L486 164 H552 L488 210"/>
-    <path d="M580 302 L644 256 V632 L580 678"/>
-    <path d="M330 458 h-30 a16 16 0 0 0 -16 16 v60 a16 16 0 0 0 16 16 h30"/>
-  </g>
-  <g fill="#111111">
-    <circle cx="380" cy="430" r="14"/>
-    <circle cx="430" cy="430" r="14"/>
-    <circle cx="480" cy="430" r="14"/>
-    <circle cx="530" cy="430" r="14"/>
-    <circle cx="380" cy="480" r="14"/>
-    <circle cx="430" cy="480" r="14"/>
-    <circle cx="480" cy="480" r="14"/>
-    <circle cx="530" cy="480" r="14"/>
-    <circle cx="380" cy="530" r="14"/>
-    <circle cx="430" cy="530" r="14"/>
-    <circle cx="480" cy="530" r="14"/>
-    <circle cx="530" cy="530" r="14"/>
-  </g>
+<style>
+  path, rect, line, circle, ellipse { fill: none; stroke: #000; stroke-linecap: round; stroke-linejoin: round; }
+  .o { stroke-width: 40; }
+  .d { stroke-width: 20; }
+  .s { stroke-width: 10; }
+</style>
+<path class="o" d="M 230 165 C 310 118, 650 118, 730 165 L 730 830 C 650 877, 310 877, 230 830 Z"/>
+<ellipse cx="480" cy="196" rx="145" ry="27" class="d"/>
+<line x1="290" y1="225" x2="290" y2="838" class="d"/>
+<circle cx="343" cy="340" r="5" class="s"/>
+<circle cx="368" cy="340" r="5" class="s"/>
+<circle cx="393" cy="340" r="5" class="s"/>
+<circle cx="368" cy="365" r="5" class="s"/>
+<circle cx="368" cy="390" r="5" class="s"/>
+<circle cx="368" cy="415" r="5" class="s"/>
+<circle cx="368" cy="440" r="5" class="s"/>
+<circle cx="468" cy="340" r="5" class="s"/>
+<circle cx="493" cy="340" r="5" class="s"/>
+<circle cx="518" cy="340" r="5" class="s"/>
+<circle cx="468" cy="365" r="5" class="s"/>
+<circle cx="518" cy="365" r="5" class="s"/>
+<circle cx="468" cy="390" r="5" class="s"/>
+<circle cx="493" cy="390" r="5" class="s"/>
+<circle cx="518" cy="390" r="5" class="s"/>
+<circle cx="518" cy="415" r="5" class="s"/>
+<circle cx="468" cy="440" r="5" class="s"/>
+<circle cx="493" cy="440" r="5" class="s"/>
+<circle cx="518" cy="440" r="5" class="s"/>
+<circle cx="568" cy="340" r="5" class="s"/>
+<circle cx="593" cy="340" r="5" class="s"/>
+<circle cx="618" cy="340" r="5" class="s"/>
+<circle cx="568" cy="365" r="5" class="s"/>
+<circle cx="618" cy="365" r="5" class="s"/>
+<circle cx="568" cy="390" r="5" class="s"/>
+<circle cx="618" cy="390" r="5" class="s"/>
+<circle cx="568" cy="415" r="5" class="s"/>
+<circle cx="618" cy="415" r="5" class="s"/>
+<circle cx="568" cy="440" r="5" class="s"/>
+<circle cx="593" cy="440" r="5" class="s"/>
+<circle cx="618" cy="440" r="5" class="s"/>
 </svg>
