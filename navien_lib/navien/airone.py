@@ -309,14 +309,22 @@ class AironeDevice:
         return label.get(language, label.get("en")) if label else None
 
     def status_text(self, language: str = "en"):
-        """One-line '운전모드 · 풍량 · 옵션' text for a read-only status sensor.
+        """One-line status for a read-only sensor.
 
-        While the unit is auto-drying (running state 4, after dehumidify) the mode/fan
-        aren't meaningful, so show only '자동 건조중'.
+        While auto-drying the mode/fan aren't meaningful, so show '자동건조' with the
+        progress in parentheses — '자동건조 (90%)'. Otherwise it's 'mode · fan · option',
+        and in 제습 the target humidity is appended to the mode — '제습(40%) · 강풍'.
+        (The running-state sensor stays a plain name for string-compare automations.)
         """
         if self.running == RUNNING_AUTO_DRY:
-            return self.running_name(language)
-        parts = [self.mode_name(language), self.fan_name(language)]
+            name = self.running_name(language)
+            pct = self.auto_dry_percent
+            return f"{name} ({pct}%)" if pct is not None else name
+        mode = self.mode_name(language)
+        hum = self.target_humidity
+        if mode and hum is not None:
+            mode = f"{mode}({hum}%)"
+        parts = [mode, self.fan_name(language)]
         if self.option not in (None, OPTION_NONE):
             parts.append(self.option_name(language))
         parts = [p for p in parts if p]

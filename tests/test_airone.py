@@ -64,8 +64,17 @@ def test_deep_merge_preserves_siblings():
 def test_running_state_auto_dry():
     u = airone.AironeDevice.from_raw(_sample_raw())
     u.apply_reported({"roomController": {"running": 4}})
-    assert u.running_name("ko") == "자동건조"
-    assert u.status_text("ko") == "자동건조"   # only this, no mode/fan
+    assert u.running_name("ko") == "자동건조"          # state stays a plain name
+    assert u.status_text("ko") == "자동건조"           # no progress value present
+    # with a progress value, the info line shows it in parentheses
+    u.apply_reported({"roomController": {"running": 4,
+                                         "additionalData": [{"type": 4, "value": 90}]}})
+    assert u.status_text("ko") == "자동건조 (90%)"
+
+
+def test_status_text_dehumidify_humidity_in_parens():
+    u = airone.AironeDevice.from_raw(_sample_raw())   # mode 9 (제습), humidity 55, fan 2
+    assert u.status_text("ko").startswith("제습(55%) · ")
 
 
 def test_auto_dry_percent_reads_last_type4():
