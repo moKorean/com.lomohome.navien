@@ -316,10 +316,14 @@ class AironeDevice:
         and in 제습 the target humidity is appended to the mode — '제습(40%) · 강풍'.
         (The running-state sensor stays a plain name for string-compare automations.)
         """
-        if self.running == RUNNING_AUTO_DRY:
+        r = self.running
+        if r == RUNNING_AUTO_DRY:
             name = self.running_name(language)
             pct = self.auto_dry_percent
             return f"{name} ({pct}%)" if pct is not None else name
+        if r is not None and r != RUNNING_ON:
+            # not actively running (정지 / 외출) — the mode/fan aren't the story
+            return self.running_name(language)
         mode = self.mode_name(language)
         hum = self.target_humidity
         if mode and hum is not None:

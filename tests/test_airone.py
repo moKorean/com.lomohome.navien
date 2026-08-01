@@ -77,6 +77,12 @@ def test_status_text_dehumidify_humidity_in_parens():
     assert u.status_text("ko").startswith("제습(55%) · ")
 
 
+def test_status_text_stopped_shows_state():
+    u = airone.AironeDevice.from_raw(_sample_raw())
+    u.apply_reported({"roomController": {"running": 2}})   # 정지
+    assert u.status_text("ko") == "정지"
+
+
 def test_auto_dry_percent_reads_last_type4():
     u = airone.AironeDevice.from_raw(_sample_raw())
     # not auto-drying -> None even if a type-4 value is present
