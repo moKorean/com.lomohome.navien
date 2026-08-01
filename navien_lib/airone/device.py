@@ -63,10 +63,11 @@ _MODE_IDS = {"m12", "m10", "m4", "m9", "m8", "m6", "sleep", "m17"}
 _FAN_IDS = {"v4", "o3", "v1", "v3", "o2"}
 
 # The appliance takes a few seconds to accept a command and report the new state, so a
-# poll/MQTT report arriving in that gap still carries the *old* value and would snap a
-# just-changed control back. After a command we show the requested value immediately
-# (optimistic) and hold it — ignoring control updates — until the device settles.
-_SETTLE_S = 5.0
+# report arriving in that gap still carries the *old* value and would snap a just-changed
+# control back. After a command we show the requested value immediately (optimistic) and
+# hold it — ignoring control updates — until either the device confirms the change (a
+# report matching what we asked for, released early) or this window elapses.
+_SETTLE_S = 3.0
 
 
 def _mode_id(u) -> str | None:
@@ -128,8 +129,10 @@ class AironeDevice_(device.Device):
         # toast rather than the slider vanishing.
         self._last_humidity = None
         # monotonic deadline until which control capabilities are held at their optimistic
-        # value (see _SETTLE_S).
+        # value (see _SETTLE_S), and the control values we're waiting for the device to
+        # confirm so the hold can end early.
         self._settle_until = 0.0
+        self._pending: dict = {}
 
         self.log(f"{self.get_name()} init (seq={self._device_seq}, phys={self._physical_id})")
         self._poll_task = asyncio.create_task(self._run())
@@ -272,6 +275,11 @@ class AironeDevice_(device.Device):
         if device_id and device_id not in (self._device_id, self._physical_id):
             return
         self._unit.apply_reported(reported)
+        # If this report confirms the change we're holding for, end the hold now so the
+        # confirmed state shows immediately instead of waiting out the window.
+        if self._settle_until and self._pending_confirmed():
+            self._settle_until = 0.0
+            self._pending = {}
         self._spawn(self._apply_state())
 
     # --- capability write --------------------------------------------------
@@ -332,15 +340,44 @@ class AironeDevice_(device.Device):
         """풍량은 환기·제습·청정·바이패스 모드, 또는 숙면 옵션일 때만 조절할 수 있다."""
         return self._unit.option == OPTION_SLEEP or self._unit.mode in FAN_ADJUSTABLE_MODES
 
+    def _pending_from_desired(self, desired) -> dict:
+        """The control values a command asks for, so a matching report can end the hold."""
+        rc = (desired or {}).get("roomController") or {}
+        pending: dict = {}
+        for key in ("running", "mode", "option", "airVolume"):
+            if key in rc:
+                try:
+                    pending[key] = int(rc[key])
+                except (TypeError, ValueError):
+                    pass
+        extra = rc.get("additionalData")
+        if isinstance(extra, dict) and "value" in extra:
+            try:
+                pending["humidity"] = int(extra["value"])
+            except (TypeError, ValueError):
+                pass
+        return pending
+
+    def _pending_confirmed(self) -> bool:
+        """True once the model reflects everything the pending command asked for."""
+        if not self._pending:
+            return False
+        u = self._unit
+        now = {"running": u.running, "mode": u.mode, "option": u.option,
+               "airVolume": u.air_volume, "humidity": u.target_humidity}
+        return all(now.get(k) == v for k, v in self._pending.items())
+
     async def _optimistic(self, desired) -> None:
-        """Reflect a just-sent command right away and hold it for a few seconds.
+        """Reflect a just-sent command right away and hold it briefly.
 
         The appliance needs ~3 s to accept the command and report back; until then its
         reports still carry the old value. We merge the requested state into the model,
-        push it now, and set a settle deadline so incoming reports can't snap the control
-        back in the meantime. A readback nudges a fresh report once it has settled.
+        push it now, and set a settle deadline so lagging reports can't snap the control
+        back — but a report that *confirms* the change ends the hold early (see
+        _on_reported). A readback nudges a fresh report.
         """
         self._unit.apply_reported(desired)
+        self._pending = self._pending_from_desired(desired)
         self._settle_until = time.monotonic() + _SETTLE_S
         self._schedule_readback()
         await self._apply_state(force=True)
@@ -349,6 +386,9 @@ class AironeDevice_(device.Device):
             # After the window, push the confirmed (or, if the command was rejected,
             # reverted) state so a failed command doesn't leave a stale optimistic value.
             await asyncio.sleep(_SETTLE_S + 0.5)
+            if time.monotonic() >= self._settle_until:   # not extended by a newer command
+                self._settle_until = 0.0
+                self._pending = {}
             await self._apply_state()
         self._spawn(reapply())
 
