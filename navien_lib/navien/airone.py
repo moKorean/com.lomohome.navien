@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 
 from navien_lib.const import (
     AIR_VOLUME_NAMES,
+    AIRONE_AUTO_DRY_TYPE,
     AIRONE_SENSOR_ALIASES,
     AIRONE_V2_MIN_MODEL_CODE,
     HUMIDITY_MAX_FALLBACK,
@@ -262,6 +263,21 @@ class AironeDevice:
     @property
     def is_on(self) -> bool:
         return self.running == RUNNING_ON
+
+    @property
+    def auto_dry_percent(self):
+        """Auto-dry progress (%) while running == 4, else None.
+
+        The app shows it inside the status line ("자동건조 중 47%"); we keep the status
+        text as just '자동건조' and expose the number separately. Read the last
+        additionalData type-4 entry, like the app. Ported from navien_smart_ha.
+        """
+        if self.running != RUNNING_AUTO_DRY:
+            return None
+        for extra in reversed(self._room.get("additionalData") or []):
+            if isinstance(extra, dict) and _as_int(extra.get("type")) == AIRONE_AUTO_DRY_TYPE:
+                return _as_int(extra.get("value"))
+        return None
 
     def running_name(self, language: str = "en"):
         """Localized running-state name; unknown codes shown as 'State (n)'."""

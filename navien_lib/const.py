@@ -112,13 +112,16 @@ MQTT_BACKOFF_S = (5, 15, 30, 60, 120, 300)
 RUNNING_ON = 1
 RUNNING_OFF = 2
 RUNNING_AWAY = 3
-RUNNING_AUTO_DRY = 4       # after dehumidify the unit dries itself
+RUNNING_AUTO_DRY = 4       # after dehumidify the unit dries itself (name follows the app)
 RUNNING_NAMES = {
     RUNNING_ON: {"en": "Running", "ko": "운전"},
     RUNNING_OFF: {"en": "Stopped", "ko": "정지"},
     RUNNING_AWAY: {"en": "Away", "ko": "외출"},
-    RUNNING_AUTO_DRY: {"en": "Auto drying", "ko": "자동 건조중"},
+    RUNNING_AUTO_DRY: {"en": "Auto drying", "ko": "자동건조"},
 }
+# additionalData.type carrying the auto-dry progress (%) while running == 4. Confirmed
+# against the Navien app ("자동건조 중 %02d%%"); take the last type-4 entry. From navien_smart_ha.
+AIRONE_AUTO_DRY_TYPE = 4
 
 # --- AirOne operating modes (roomController.mode) --------------------------
 MODE_NAMES = {

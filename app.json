@@ -749,6 +749,7 @@
         "navien_airone_fan",
         "navien_running_state",
         "navien_airone_status",
+        "navien_auto_dry_percent",
         "navien_target_humidity",
         "navien_air_grade",
         "measure_co2",
@@ -982,6 +983,22 @@
       "setable": false,
       "uiComponent": "sensor",
       "icon": "/assets/capabilities/mdi-air-purifier.svg"
+    },
+    "navien_auto_dry_percent": {
+      "type": "number",
+      "title": {
+        "en": "Auto-dry progress",
+        "ko": "자동건조 진행률"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/capabilities/mdi-water-percent.svg",
+      "decimals": 0,
+      "units": {
+        "en": "％"
+      },
+      "insights": true
     },
     "navien_error_code": {
       "type": "number",

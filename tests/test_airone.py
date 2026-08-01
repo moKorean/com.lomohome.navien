@@ -64,8 +64,21 @@ def test_deep_merge_preserves_siblings():
 def test_running_state_auto_dry():
     u = airone.AironeDevice.from_raw(_sample_raw())
     u.apply_reported({"roomController": {"running": 4}})
-    assert u.running_name("ko") == "자동 건조중"
-    assert u.status_text("ko") == "자동 건조중"   # only this, no mode/fan
+    assert u.running_name("ko") == "자동건조"
+    assert u.status_text("ko") == "자동건조"   # only this, no mode/fan
+
+
+def test_auto_dry_percent_reads_last_type4():
+    u = airone.AironeDevice.from_raw(_sample_raw())
+    # not auto-drying -> None even if a type-4 value is present
+    u.apply_reported({"roomController": {"running": 1,
+                                         "additionalData": [{"type": 4, "value": 30}]}})
+    assert u.auto_dry_percent is None
+    # auto-drying -> the last type-4 value wins
+    u.apply_reported({"roomController": {"running": 4, "additionalData": [
+        {"type": 3, "value": 55}, {"type": 4, "value": 30}, {"type": 4, "value": 47},
+    ]}})
+    assert u.auto_dry_percent == 47
 
 
 def test_apply_reported_strips_capability_descriptors():

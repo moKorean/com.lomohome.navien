@@ -10,6 +10,7 @@
     "navien_airone_fan",
     "navien_running_state",
     "navien_airone_status",
+    "navien_auto_dry_percent",
     "navien_target_humidity",
     "navien_air_grade",
     "measure_co2",
