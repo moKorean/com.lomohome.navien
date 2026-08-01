@@ -66,8 +66,9 @@ _FAN_IDS = {"v4", "o3", "v1", "v3", "o2"}
 # report arriving in that gap still carries the *old* value and would snap a just-changed
 # control back. After a command we show the requested value immediately (optimistic) and
 # hold it — ignoring control updates — until either the device confirms the change (a
-# report matching what we asked for, released early) or this window elapses.
-_SETTLE_S = 3.0
+# report matching what we asked for, released early) or this window elapses. Kept
+# generous because a confirming report ends it early anyway.
+_SETTLE_S = 5.0
 
 
 def _mode_id(u) -> str | None:
