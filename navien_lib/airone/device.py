@@ -389,16 +389,29 @@ class AironeDevice_(device.Device):
             self.log(f"humidity range set failed: {exc}")
 
     async def _airone(self, command: str, desired):
-        client_id = self._mqtt.client_id if self._mqtt else f"rest-U{self._api.user_seq}"
-        return await self._api.airone_command(
-            device_seq=self._device_seq,
-            home_seq=self._home_seq,
-            model_code=self._model_code,
-            physical_device_id=self._physical_id,
-            client_id=client_id,
-            command=command,
-            desired=desired,
-        )
+        # Retry transient failures. A single blip (session bounce, network) used to make
+        # the capability listener reject, which reverts the tile's Quick Action toggle —
+        # so a "power on" would visibly not take. Commands are idempotent (turning an
+        # already-on unit on is a no-op), so re-sending is safe.
+        last = None
+        for attempt in range(3):
+            try:
+                client_id = (self._mqtt.client_id if self._mqtt
+                             else f"rest-U{self._api.user_seq}")
+                return await self._api.airone_command(
+                    device_seq=self._device_seq,
+                    home_seq=self._home_seq,
+                    model_code=self._model_code,
+                    physical_device_id=self._physical_id,
+                    client_id=client_id,
+                    command=command,
+                    desired=desired,
+                )
+            except Exception as exc:
+                last = exc
+                self.log(f"airone {command} failed (attempt {attempt + 1}/3): {exc}")
+                await asyncio.sleep(0.6 * (attempt + 1))
+        raise last
 
     def _schedule_readback(self) -> None:
         """Nudge the appliance to publish a fresh report shortly after a command."""
