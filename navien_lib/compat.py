@@ -79,6 +79,22 @@ async def shared_api(homey):
     return api
 
 
+async def reauth_shared_api(homey, username: str, password: str) -> None:
+    """Validate credentials by pointing the app-wide shared session at them and logging
+    in; raises on failure. Falls back to a throwaway login if the app can't be reached."""
+    app = getattr(homey, "app", None)
+    fn = getattr(app, "reauth", None) if app is not None else None
+    if fn is not None:
+        await resolve(fn(username, password))
+        return
+
+    from .navien.api import NavienApi
+
+    api = NavienApi(username=username, password=password,
+                    log=getattr(app, "log", print) if app is not None else print)
+    await api.login()
+
+
 def flow_card(homey, kind: str, card_id: str):
     """Fetch a flow card, tolerating either the snake_case or camelCase SDK spelling.
 

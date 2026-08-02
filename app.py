@@ -37,6 +37,19 @@ class NavienApp(homey_app.App):
         await self._seed_ui_language()
         self.log("Navien Smart app is running...")
 
+    def _client(self, username: str, password: str) -> NavienApi:
+        """The one shared NavienApi object, kept *stable* — its credentials are updated
+        in place rather than replaced, so devices that already hold a reference pick up a
+        repair (password change) without re-init."""
+        if self._api is None:
+            self._api = NavienApi(username=username, password=password, log=self.log)
+        elif self._api.username != username or self._api.password != password:
+            self._api.username = username
+            self._api.password = password
+            self._api.access_token = ""   # force a fresh login with the new credentials
+            self._api.aws = None
+        return self._api
+
     async def shared_api(self) -> NavienApi:
         """The single Navien session shared by every device on this account.
 
@@ -50,13 +63,20 @@ class NavienApp(homey_app.App):
             password = await compat.setting_get(self.homey, SETTING_PASSWORD)
             if not username or not password:
                 raise RuntimeError("먼저 앱 설정에서 나비엔 계정으로 로그인하세요.")
-            api = self._api
-            if api is None or api.username != username or api.password != password:
-                api = NavienApi(username=username, password=password, log=self.log)
-                self._api = api
+            api = self._client(username, password)
             if not api.access_token:
                 await api.login()
             return api
+
+    async def reauth(self, username: str, password: str) -> None:
+        """Point the shared session at new credentials and log in to validate them.
+
+        Used by repair: it updates the one shared client in place (so running devices
+        recover on their next request) and raises if the credentials are wrong — the
+        caller only writes them to settings once this succeeds.
+        """
+        async with self._api_lock:
+            await self._client(username, password).login()
 
     async def _seed_ui_language(self) -> None:
         """Recover the UI language reported by an earlier pairing session if unset.
