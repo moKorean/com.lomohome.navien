@@ -46,5 +46,9 @@
   "0.5.9": {
     "en": "Shows auto-dry progress ('Auto drying (90%)' in the operating info, plus a sensor). The operating info also shows the dehumidify target ('Dehumidify(40%)') and the Stopped/Away state. Control commands retry on a transient error, so the tile power toggle is more reliable, and the display updates as soon as the appliance confirms a change.",
     "ko": "자동건조 진행률을 표시합니다(운전 정보에 '자동건조 (90%)', 별도 센서도). 운전 정보에 제습 희망습도('제습(40%)')와 정지/외출 상태도 표시합니다. 제어 명령이 일시적 오류에 재시도해 타일 전원 토글이 더 안정적이고, 기기가 변경을 반영하는 즉시 화면이 갱신됩니다."
+  },
+  "0.5.10": {
+    "en": "After you change your password, re-logging in from a device's Repair now recovers your devices without restarting the app. Adding or repairing a device also no longer competes with the running devices for the account's single session.",
+    "ko": "비밀번호를 바꾼 뒤 기기의 복구(Repair)에서 다시 로그인하면, 앱을 재시작하지 않아도 기기가 복구됩니다. 기기 추가·복구가 실행 중인 기기와 계정 세션을 두고 충돌하던 것도 없앴습니다."
   }
 }
