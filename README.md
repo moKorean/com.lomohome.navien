@@ -70,7 +70,7 @@ Homey **Python 런타임** 앱(SDK 3)입니다. 런타임 의존성은 `app.json
 homey app build     # .homeycompose/* 를 app.json 으로 병합하고 python_packages 빌드
 homey app install   # 빌드 후 연결된 Homey 에 설치
 homey app run       # 개발 모드(실시간 로그) — 페어링/로그인 문제 진단용
-python3 -m pytest -q # 이식 로직 단위 테스트 (navien_lib/navien/*)
+uv run pytest -q    # 이식 로직 단위 테스트 (navien_lib/navien/*)
 ```
 
 스토어·기기 이미지와 아이콘은 `docs/`의 원본에서 `scripts/make_images.py`로 생성합니다.

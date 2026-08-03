@@ -77,7 +77,7 @@ A Homey **Python runtime** app (SDK 3). Its only runtime dependencies are `paho-
 homey app build     # compose .homeycompose/* into app.json and build python_packages
 homey app install   # build and install to the connected Homey
 homey app run        # dev mode with live logs (for diagnosing pairing/login)
-python3 -m pytest -q # unit tests for the ported logic (navien_lib/navien/*)
+uv run pytest -q     # unit tests for the ported logic (navien_lib/navien/*)
 ```
 
 Store and device images and icons are generated from the sources in `docs/` via
