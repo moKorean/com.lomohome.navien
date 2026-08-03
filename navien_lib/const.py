@@ -107,6 +107,28 @@ POLL_INTERVAL_S = 300.0                # REST re-read of device state / air sens
 INITIAL_STATE_TIMEOUT_S = 45.0         # warn if no reported state arrives after connect
 AIRONE_READBACK_DELAY_S = 3.0          # re-request status this long after a command
 MQTT_BACKOFF_S = (5, 15, 30, 60, 120, 300)
+# Fraction of POLL_INTERVAL_S applied as ± jitter to every poll sleep, and as a one-shot
+# 0..+x offset on the first loop sleep of a device's life. Both are 10 %, so on the real
+# 300 s tick the jitter is ±30 s and the start offset is 0-30 s. Expressed as fractions
+# rather than seconds so the two are tied to whatever the interval is — including the
+# millisecond interval the tests monkeypatch in, which a fixed 30 s constant would hang.
+# This is not politeness: three devices whose ticks are phase-aligned from boot make every
+# cross-correlation between their logs ambiguous, which is what I1/I3 have to read.
+POLL_JITTER = 0.10
+POLL_START_JITTER = 0.10
+# Age of the newest MQTT report past which the AirOne's status line carries a staleness
+# marker. Derived, not chosen: after F2 a broken push link recovers inside one poll tick
+# and after the event-driven reconnect in under 30 s, so the marker must only appear once
+# two whole probes have gone unanswered. Two ticks is 600 s on paper, but POLL_JITTER can
+# stretch each one to 330 s, so two jittered ticks is 660 s — at 600 s the marker could
+# fire after ~1.8 probes, which is noise (plan §7 condition 4).
+STALE_AFTER_S = 660.0
+# How recently another caller's login must have happened for `login_if_stale` to reuse it
+# instead of logging in again. It exists because `_login_locked` re-mints `self.aws`
+# unconditionally and `build_signed_ws_path` sets no `X-Amz-Expires`, so the reconnect path
+# must never presign from arbitrarily old temporary credentials: within this window the
+# dedup is free, beyond it freshness wins and the generation is re-minted anyway.
+AWS_CREDS_FRESH_S = 60.0
 
 # --- AirOne running state (roomController.running; newer-gen convention) ----
 RUNNING_ON = 1

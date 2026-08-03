@@ -81,6 +81,34 @@ def strip_capability_fields(incoming: dict) -> dict:
     return trimmed
 
 
+def merge_additional_data(base, incoming) -> list:
+    """Merge `roomController.additionalData` entries by `type` instead of replacing.
+
+    `deep_merge` replaces a list wholesale, which is right for every other list in a
+    report but wrong here: a report carries only the types it has news about, so a lone
+    type-3 humidity echo would delete the type-4 auto-dry progress alongside it.
+
+    This never removes an entry, and that is safe in both directions. A stale type-4 is
+    invisible because `auto_dry_percent` returns None unless running == RUNNING_AUTO_DRY.
+    A stale type-3 is always overwritten by the incoming one, via `target_humidity`'s
+    range check and its HUMIDITY_REPORT_TYPE preference.
+    """
+    if isinstance(base, dict):
+        base = [base]
+    out = [entry for entry in (base or []) if isinstance(entry, dict)]
+    for entry in incoming or []:
+        if not isinstance(entry, dict):
+            continue
+        kind = _as_int(entry.get("type"))
+        for i, existing in enumerate(out):
+            if _as_int(existing.get("type")) == kind:
+                out[i] = entry
+                break
+        else:
+            out.append(entry)
+    return out
+
+
 def _first(d: dict, *keys, default=None):
     for k in keys:
         if isinstance(d, dict) and d.get(k) is not None:
@@ -149,6 +177,16 @@ class AironeDevice:
     zone_id: object = None
     reported: dict = field(default_factory=dict)
     air_sensors: dict = field(default_factory=dict)   # kind -> {"value":.., "level":..}
+    # The cloud's own "is this appliance online" flag, `raw["connected"]` — the one field
+    # in `GET /devices` that is live rather than a capability descriptor, and the only
+    # authoritative answer we have to "will a control POST actually arrive".
+    #
+    # Tri-state on purpose. Upstream stores `bool(raw.get("connected"))` (airone.py:461),
+    # which fails *closed*: a firmware or account that simply omits the key would read as
+    # permanently offline. Keeping None for "the key was not there" and testing
+    # `is not False` at the use site fails *open* instead, so an absent field costs
+    # nothing and only an explicit False takes the device away from the user.
+    connected_registry: bool | None = None
 
     # --- construction ------------------------------------------------------
 
@@ -166,6 +204,11 @@ class AironeDevice:
 
         reported = cls._reported_of(props)
         room = reported.get("roomController") or {}
+        # `_first` skips a key whose value is None but keeps an explicit False, which is
+        # exactly the distinction `connected_registry` is built on.
+        connected = _first(raw, "connected")
+        if connected is None:
+            connected = _first(props, "connected")
 
         device_seq = _first(raw, "deviceSeq", "device_seq") or _first(props, "deviceSeq")
         device_id = str(_first(raw, "deviceId") or _first(props, "deviceId") or "")
@@ -204,7 +247,19 @@ class AironeDevice:
             nickname=str(nickname),
             physical_device_id=physical,
             zone_id=_first(room, "zoneId"),
+            # Not inert, despite carrying no live state: `_poll_once` reads
+            # `humidity_range()` and `wants_air_sensors()` off the unit built here, and
+            # both traverse `reported`. Dropping it would send every unit to the 40/70
+            # humidity fallback (this transient unit is the app's only path to the server's
+            # real range — the live model's `roomController.mode` is an int, so its own
+            # humidity_range() always falls back) and would make `wants_air_sensors()`
+            # unconditionally True, restoring the wasted /air-sensor call on ventilators
+            # with no monitor. Merging it into live state is the separate mistake, fenced
+            # in airone/device.py's `_poll_once`.
             reported=reported,
+            # Coerced to bool only when the key is actually present; see the field comment
+            # for why the absent case must stay None rather than collapsing to False.
+            connected_registry=(None if connected is None else bool(connected)),
         )
 
     @staticmethod
@@ -217,7 +272,38 @@ class AironeDevice:
         return {}
 
     def apply_reported(self, reported: dict) -> None:
-        deep_merge(self.reported, strip_capability_fields(reported or {}))
+        r"""Deep-merge a report into the live state.
+
+        `roomController.additionalData` needs two extra steps, both forced by our own
+        control path rather than by the server: `_change_mode` sends that field as a bare
+        dict (:427 and :444 — hardware-verified, so the wire shape stays) and `_optimistic`
+        feeds the very same dict straight back in here (airone/device.py:380). Coercing it
+        to a one-item list and then merging by `type` stops that echo from replacing the
+        whole list, which is what deleted the type-4 entry and quietly degraded
+        '자동건조 (90%)' to '자동건조'.
+
+        Order: the coercion runs *after* `strip_capability_fields`. Either order gives the
+        same result — the strip only inspects `additionalData` when it is already a list,
+        so a dict passes through it untouched — but it is stated here rather than left
+        implicit, and running it second means the strip keeps seeing the shape the server
+        actually sent.
+
+        The incoming dict is copied, never mutated: `_optimistic` reads its `desired` back
+        afterwards (airone/device.py:381 → `_pending_from_desired`), which expects the
+        dict form and would lose the pending humidity if this rewrote it in place.
+        """
+        incoming = strip_capability_fields(reported or {})
+        room = incoming.get("roomController")
+        if isinstance(room, dict) and "additionalData" in room:
+            extras = room["additionalData"]
+            if isinstance(extras, dict):
+                extras = [extras]
+            room = dict(room)
+            room["additionalData"] = merge_additional_data(
+                self._room.get("additionalData"), extras)
+            incoming = dict(incoming)
+            incoming["roomController"] = room
+        deep_merge(self.reported, incoming)
 
     def wants_air_sensors(self) -> bool:
         """Whether it's worth asking this unit for air quality.
@@ -274,7 +360,13 @@ class AironeDevice:
         """
         if self.running != RUNNING_AUTO_DRY:
             return None
-        for extra in reversed(self._room.get("additionalData") or []):
+        extras = self._room.get("additionalData") or []
+        # Normalise the dict form the way target_humidity (:363-365) and AironeMode.parse
+        # (:134-135) already do. Without it `reversed()` yields the dict's *keys*, every
+        # isinstance check below fails, and the percentage silently disappears.
+        if isinstance(extras, dict):
+            extras = [extras]
+        for extra in reversed(extras):
             if isinstance(extra, dict) and _as_int(extra.get("type")) == AIRONE_AUTO_DRY_TYPE:
                 return _as_int(extra.get("value"))
         return None

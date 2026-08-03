@@ -95,23 +95,39 @@ class NavienMqtt:
     """Subscribe-only AWS IoT client that pushes AirOne reports to a callback.
 
     `creds_provider()` returns the current AwsCredentials (re-fetched on reconnect,
-    because the presigned path expires). `on_reported(device_id, reported)` is invoked
-    on the asyncio loop.
+    because the presigned path expires). `home_seq_provider()` is the same shape and exists
+    for the same reason: the home a device belongs to is read from settings and the settings
+    page rewrites it, so a value captured at construction would keep this client subscribed
+    to a tree the account no longer uses. `on_reported(device_id, reported)` is invoked on
+    the asyncio loop, and so are the optional `on_connected()` / `on_disconnected()`, which
+    exist so the device layer can rebuild the link on the event instead of on the next poll
+    tick — paho's own reconnect retries the one presigned path it was given, and that path
+    carries an STS token nothing can refresh from inside paho.
     """
 
-    def __init__(self, *, loop, user_seq, home_seq, creds_provider, on_reported,
-                 prefixes=("airone",), parser=extract_airone_reported, log=print):
+    def __init__(self, *, loop, user_seq, home_seq_provider, creds_provider, on_reported,
+                 prefixes=("airone",), parser=extract_airone_reported, log=print,
+                 on_connected=None, on_disconnected=None):
         self._loop = loop
         self._user_seq = user_seq
-        self._home_seq = home_seq
+        self._home_seq_provider = home_seq_provider
         self._creds_provider = creds_provider
         self._on_reported = on_reported
+        self._on_connected = on_connected
+        self._on_disconnected = on_disconnected
         self._prefixes = tuple(prefixes)
         self._parser = parser
         self._log = log
         self._client = None
         self._client_id = ""
         self._connected = False
+        # Set at the top of `close()` and cleared at the top of `connect_blocking()`.
+        # It exists because `close()` calls `loop_stop()` before `disconnect()`: once
+        # `loop_stop()` has joined paho's network thread, `_packet_queue` writes on the
+        # *calling* thread, so `on_disconnect` fires synchronously inside `close()`.
+        # Without this flag every close would look like a drop and re-arm the very
+        # reconnect path that is dismantling the client.
+        self._closing = False
 
     @property
     def client_id(self) -> str:
@@ -123,6 +139,22 @@ class NavienMqtt:
 
     def connect_blocking(self) -> None:
         """Build a client and connect. Runs in an executor thread (blocking)."""
+        # F13: `close()` leaves `_client` None but used to leave `_connected` True, and a
+        # stale True with no client makes the device layer's `_ensure_mqtt` return early
+        # for the rest of the app's life. Reset here as well as in `close()`, so a failed
+        # attempt cannot leave the previous connection's verdict standing.
+        self._connected = False
+        # Cleared here rather than in a trailing `finally`, and the position is the fix.
+        # The `finally` covered the raising path — the outage this reconnect exists for —
+        # but it only ran *after* `loop_start()`, so a CONNACK that landed in between was
+        # dispatched into a still-suppressing `_dispatch` and the `on_connected` callback
+        # was swallowed: a connection that came up with nothing re-requesting state. Doing
+        # it at the top covers the raising path just as well (nothing below re-sets it on
+        # its own) and leaves the whole body running with the flag honest. It also gives
+        # the two guards below a meaning they could not otherwise have: from here on,
+        # `_closing` being True can only mean a `close()` landed *during* this build.
+        self._closing = False
+
         import paho.mqtt.client as mqtt
 
         creds = self._creds_provider()
@@ -140,11 +172,41 @@ class NavienMqtt:
         # paho's own reconnect handles transient drops; a fresh presigned path is
         # rebuilt by reconnecting through the device layer when creds expire.
         client.reconnect_delay_set(min_delay=5, max_delay=300)
+        # B4. The device layer's asyncio lock serialises the *coroutines* that drive this
+        # method, but `asyncio.gather` on a cancelled task returns while the executor
+        # thread underneath `_to_thread(connect_blocking)` keeps running — so teardown can
+        # queue `close()` on another pool worker mid-build. Installing the client anyway
+        # would `loop_start()` a network thread that outlives the device and that nothing
+        # holds a reference to. Refusing at the point of assignment is what makes that
+        # unreachable; there is nothing to unwind here, because the client has not
+        # connected yet.
+        if self._closing:
+            self._log("navien mqtt: close() landed mid-connect; client not installed")
+            return
         self._client = client
         client.connect(IOT_ENDPOINT, IOT_PORT, keepalive=60)
         client.loop_start()
+        # The other half of the same guard, and both are needed. A `close()` landing
+        # between the check above and `loop_start()` finds `_client` already set, so it
+        # calls `loop_stop()` on a loop that has not started yet and then this line starts
+        # it — the orphan the check above exists to prevent, one statement later. Undoing
+        # it here is the only way to catch that ordering, since a close() this late has
+        # already done its own work.
+        if self._closing:
+            self._log("navien mqtt: close() landed mid-connect; unwinding the client")
+            self._connected = False
+            self._client = None
+            try:
+                client.loop_stop()
+                client.disconnect()
+            except Exception:
+                pass
 
     def close(self) -> None:
+        # Before loop_stop()/disconnect(), because `_on_disconnect` fires synchronously
+        # inside this call once the network thread is gone (see __init__).
+        self._closing = True
+        self._connected = False
         if self._client is not None:
             try:
                 self._client.loop_stop()
@@ -156,8 +218,9 @@ class NavienMqtt:
     # --- paho callbacks (paho thread) --------------------------------------
 
     def _topics(self) -> list:
-        # `#` because replies arrive one level deeper than the prefix.
-        return [f"{self._home_seq}/{prefix}/#" for prefix in self._prefixes]
+        # `#` because replies arrive one level deeper than the prefix. The home_seq is read
+        # per call, so a client rebuilt after the setting changed subscribes to the new tree.
+        return [f"{self._home_seq_provider()}/{prefix}/#" for prefix in self._prefixes]
 
     def _on_connect(self, client, _userdata, _flags, reason_code, _props=None):
         if getattr(reason_code, "is_failure", False):
@@ -167,10 +230,32 @@ class NavienMqtt:
             client.subscribe(topic, qos=0)
         self._connected = True
         self._log(f"navien mqtt: connected, subscribed {self._topics()}")
+        # Dispatched *after* subscribe() and after `_connected = True`, and that ordering
+        # is load-bearing rather than tidy: the device layer's re-request of state guards
+        # itself on `mqtt.connected`, so a callback dispatched any earlier would arrive on
+        # the loop while `connected` was still False and cancel the very request it exists
+        # to make. It also means the subscription is in place before the reply can arrive.
+        self._dispatch(self._on_connected)
 
     def _on_disconnect(self, _client, _userdata, *args):
         self._connected = False
         self._log("navien mqtt: disconnected")
+        self._dispatch(self._on_disconnected)
+
+    def _dispatch(self, callback) -> None:
+        """Hop a paho-thread event onto the asyncio loop — the same hop `_on_message`
+        makes. RuntimeError is the loop being closed already, i.e. app teardown.
+
+        `_closing` is checked here so it covers both events: a deliberate `close()` must
+        neither re-arm the reconnect (the disconnect it causes is not a drop) nor announce
+        a connection on a client that is being taken apart.
+        """
+        if callback is None or self._closing:
+            return
+        try:
+            self._loop.call_soon_threadsafe(callback)
+        except RuntimeError:
+            pass
 
     def _on_message(self, _client, _userdata, message):
         import json
@@ -181,6 +266,11 @@ class NavienMqtt:
             return
         parsed = self._parser(message.topic, payload)
         if parsed is None:
+            # I4. A frame that carries no known reported section is dropped here in
+            # silence today, which is indistinguishable from no frame arriving at all —
+            # the failure mode an empty tile has to be traced through.
+            self._log(f"navien mqtt: unmatched frame {message.topic} device_id=None "
+                      f"matched=False (no reported section)")
             return
         device_id, reported = parsed
         # Hop off the paho thread before touching Homey/asyncio state.

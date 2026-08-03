@@ -25,3 +25,6 @@ uv.lock
 *.pem
 *.key
 certs/
+
+# OMC operational artifacts (plans, state, logs).
+.omc/

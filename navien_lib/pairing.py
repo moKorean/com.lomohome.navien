@@ -12,7 +12,9 @@ wrong entry never overwrites a working account. Because the shared client is upd
 place, running devices pick up the new credentials without a re-init.
 
 Every network call is bounded by a hard timeout so a stalled request surfaces as a
-visible error rather than an endless spinner.
+visible error rather than an endless spinner — but the bound has to be larger than the
+worst case of the thing it bounds, or it is not a safety net, it is a second failure
+mode. See LOGIN_TIMEOUT_S.
 """
 
 import asyncio
@@ -21,7 +23,27 @@ from navien_lib import compat
 from navien_lib.const import SETTING_HOME_SEQ, SETTING_PASSWORD, SETTING_USERNAME
 from navien_lib.navien.api import NavienAuthError
 
-LOGIN_TIMEOUT_S = 25.0
+# Derived from the call it bounds, not chosen. Every leg below runs at navien/api.py's
+# 15 s socket timeout, and the longest of them is `build_devices` -> `list_devices` ->
+# `_authed`, whose own budget is 3 HTTP attempts + the one permitted re-login (itself a
+# two-step form-login + secured-sign-in) + the 1 s pause after a network retry:
+# 15*3 + 15*2 + 1 = 76 s. A leg that still has to log in lazily first adds another
+# two-step login, so 106 s. 110 s covers that with scheduling slack.
+#
+# This was 25 s, which no leg of this file could meet — and the alternative fix, bounding
+# the pairing path to a single HTTP call, could not have rescued it either: the login legs
+# (`shared_api`, `reauth_shared_api`) are irreducibly two HTTP calls because the login is
+# two-step, so 30 s is their floor no matter how the request budget is capped. Raising the
+# budget is the only option that makes all three legs honest.
+#
+# Residual risk, deliberately left: `asyncio.wait_for` cancels the *await*, not the
+# `run_in_executor` thread underneath it, so if this budget ever does expire the orphaned
+# request can still finish and write `access_token`/`aws` on the shared session after the
+# pair view has already reported failure. A budget above the real worst case makes that
+# nearly unreachable instead of routine — at 25 s it fired on a merely slow-but-working
+# login, i.e. exactly when the orphan was still going to succeed — but only cancellable
+# I/O would remove it.
+LOGIN_TIMEOUT_S = 110.0
 _SLOW_LOGIN = "로그인 응답이 지연됩니다. 네트워크를 확인하고 다시 시도하세요."
 _NEED_LOGIN = "먼저 앱 설정에서 나비엔 계정으로 로그인하세요."
 

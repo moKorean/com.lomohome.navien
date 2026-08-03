@@ -10,6 +10,20 @@ Copied, near-verbatim, from com.lomohome.localthings — this layer is vendor-ne
 
 import inspect
 
+# Gate 0 Q1 instrumentation: whether `shared_api`'s private-session fallback has ever
+# fired on a real runtime. It is the one branch that silently opens a second account
+# session, and the whole one-session-per-account design assumes it is dead code — so the
+# warning fires once per app start, loudly, and nothing else changes.
+_FALLBACK_WARNED = False
+
+# The one fallback session, cached. Before this, every `shared_api` call on a runtime
+# without `homey.app` built a *new* NavienApi, so N devices × every retry opened N sessions
+# against an account the cloud allows one session on — each new login bouncing the previous
+# device with 404s. Caching makes the degraded mode cost one session instead, i.e. as close
+# to the shared-session design as this branch can get. Kept module-level, like the warning,
+# because there is no app object here to hang it on.
+_FALLBACK_API = None
+
 
 async def resolve(value):
     """Return `value`, awaiting it first if it is awaitable."""
@@ -62,6 +76,7 @@ async def shared_api(homey):
     """Return the app-wide shared NavienApi (one session per account), logging in if
     needed. Falls back to a private session if the app object can't be reached, so a
     device still works on a runtime that doesn't expose `homey.app`."""
+    global _FALLBACK_WARNED, _FALLBACK_API
     app = getattr(homey, "app", None)
     getter = getattr(app, "shared_api", None) if app is not None else None
     if getter is not None:
@@ -70,29 +85,77 @@ async def shared_api(homey):
     from .const import SETTING_PASSWORD, SETTING_USERNAME
     from .navien.api import NavienApi
 
-    api = NavienApi(
-        username=await setting_get(homey, SETTING_USERNAME),
-        password=await setting_get(homey, SETTING_PASSWORD),
-        log=getattr(app, "log", print) if app is not None else print,
-    )
-    await api.login()
+    if not _FALLBACK_WARNED:
+        _FALLBACK_WARNED = True
+        log = getattr(app, "log", print) if app is not None else print
+        log("navien: WARNING shared_api fallback — homey.app exposes no shared_api, so "
+            "this device is opening its OWN account session. Navien allows one session "
+            "per account, so every other device will be bounced with 404s.")
+
+    username = await setting_get(homey, SETTING_USERNAME)
+    password = await setting_get(homey, SETTING_PASSWORD)
+    api = _FALLBACK_API
+    if api is None:
+        api = _FALLBACK_API = NavienApi(
+            username=username, password=password,
+            log=getattr(app, "log", print) if app is not None else print,
+        )
+    elif api.username != username or api.password != password:
+        # Updated in place rather than replaced, exactly as NavienApp._client does it, so a
+        # device still holding this object picks up a repair without a re-init.
+        api.username = username
+        api.password = password
+        api.access_token = ""        # force a fresh login with the new credentials
+        api.aws = None
+    # The other half of `app_logout`'s disable, and it has to live here: a runtime that
+    # reaches this branch has no `homey.app`, hence no `reauth` to re-enable the session
+    # the way NavienApp does. Saved credentials being present again is the only re-login
+    # signal this branch gets — and `clear_credentials` unsets them immediately after
+    # logging out, so a cleared account stays refused.
+    if username and password:
+        api.disabled = False
+    if not api.access_token:
+        await api.login()
     return api
 
 
-async def reauth_shared_api(homey, username: str, password: str) -> None:
+async def reauth_shared_api(homey, username: str, password: str):
     """Validate credentials by pointing the app-wide shared session at them and logging
-    in; raises on failure. Falls back to a throwaway login if the app can't be reached."""
+    in; raises on failure. Falls back to a throwaway login if the app can't be reached.
+
+    Returns the validated session so the caller can read `home_seqs()` off it. Callers that
+    only care about success (pairing) can keep ignoring it.
+    """
     app = getattr(homey, "app", None)
     fn = getattr(app, "reauth", None) if app is not None else None
     if fn is not None:
-        await resolve(fn(username, password))
-        return
+        return await resolve(fn(username, password))
 
     from .navien.api import NavienApi
 
     api = NavienApi(username=username, password=password,
                     log=getattr(app, "log", print) if app is not None else print)
     await api.login()
+    return api
+
+
+async def app_logout(homey) -> None:
+    """Disable the app-wide shared session, so devices holding it stop making requests.
+
+    A no-op where `homey.app` exposes no `logout` — the same tolerance every accessor here
+    applies, and the shared-session design is already absent on such a runtime.
+    """
+    app = getattr(homey, "app", None)
+    fn = getattr(app, "logout", None) if app is not None else None
+    if fn is not None:
+        await resolve(fn())
+    # B7. `_FALLBACK_API` is a session on the same account, cached and handed to devices
+    # exactly like the app-level one, so a logout that skips it leaves the degraded runtime
+    # still polling a deleted account. This is asserted dead code — that is what the
+    # `_FALLBACK_WARNED` instrumentation above is for — so this closes a consistency gap
+    # rather than a live defect, but the invariant is "logout stops every session we own".
+    if _FALLBACK_API is not None:
+        _FALLBACK_API.disabled = True
 
 
 def flow_card(homey, kind: str, card_id: str):

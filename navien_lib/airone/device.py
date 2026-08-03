@@ -1,33 +1,47 @@
 """One paired Navien AirOne unit.
 
-Logs into the cloud, subscribes to the realtime MQTT push for fresh state, and falls
-back to a slow REST re-read (which also carries the air-quality readings MQTT does not).
+Logs into the cloud and subscribes to the realtime MQTT push, which is the *only* source
+of live state — there is no REST fallback for it, and this docstring used to claim one.
+`GET /devices` is a capability document: upstream navien_smart_ha builds its device from
+that exact payload and deliberately fills in no reported state at all, and says plainly
+that power, running state and errors come from the status response. So REST supplies the
+air-quality readings MQTT does not carry, the capability metadata (humidity range,
+whether a sensor is attached) and the cloud's own `connected` flag — never a live
+running/mode/airVolume value. Air-quality is REST-only.
+
 Control is REST: a capability change posts a command and the device's own reply, pushed
 back over MQTT, is what updates the capability — so the UI reflects the appliance, not
-an optimistic guess. Air-quality is REST-only.
+an optimistic guess.
 
 State is deep-merged, never replaced, because reports arrive partial. See docs/PORTING.md.
 """
 
 import asyncio
+import random
 import time
 
 from homey import device
 
-from navien_lib import compat
+from navien_lib import compat, i18n
 from navien_lib.const import (
     AIRONE_CMD_CHANGE_MODE,
     AIRONE_CMD_POWER,
     AIRONE_CMD_STATUS,
     AIRONE_READBACK_DELAY_S,
+    CODE_BAD_REQUEST,
     FAN_ADJUSTABLE_MODES,
     HUMIDITY_STEP,
+    INITIAL_STATE_TIMEOUT_S,
     MODES_WITH_HUMIDITY,
+    MQTT_BACKOFF_S,
     OPTION_SAVER,
     OPTION_SLEEP,
     OPTION_TURBO,
     POLL_INTERVAL_S,
+    POLL_JITTER,
+    POLL_START_JITTER,
     SETTING_HOME_SEQ,
+    STALE_AFTER_S,
     STORE_DEVICE_ID,
     STORE_DEVICE_SEQ,
     STORE_MODEL_CODE,
@@ -100,6 +114,10 @@ class AironeDevice_(device.Device):
         self._language = await compat.ui_language(self.homey)
 
         self._home_seq = int(await compat.setting_get(self.homey, SETTING_HOME_SEQ) or 0)
+        # Gate 0 Q6: a home_seq of 0 still makes a *valid* MQTT topic filter (`0/airone/#`),
+        # so the connection succeeds and no frame ever arrives. Log what each device
+        # actually resolved at boot before deciding whether the guard is needed.
+        self.log(f"navien: home_seq={self._home_seq} for {self.get_name()}")
         # The Navien session is shared app-wide (one session per account), acquired in
         # _run. Kept as None until then.
         self._api = None
@@ -113,8 +131,55 @@ class AironeDevice_(device.Device):
             physical_device_id=self._physical_id,
         )
         self._mqtt = None
+        # B3. Three independent tasks mutate `self._mqtt` with `await` points in between:
+        # the poll loop (`_ensure_mqtt`, `_sync_home_seq`), the event-driven reconnect, and
+        # the missing-credentials retry. Nothing serialised them, and `_ensure_mqtt`'s
+        # `if self._mqtt.connected: return` early-out is inert precisely while a reconnect
+        # is in flight — so two of them could interleave close/close/connect/connect on the
+        # same object and orphan a fully connected client that still shares `_connected`
+        # and `_on_disconnect` with the live one, i.e. self-sustaining churn at one full
+        # `login()` per cycle. Worse, the retry walk saturates at MQTT_BACKOFF_S[-1], which
+        # *equals* POLL_INTERVAL_S, so the retry task and the poll tick are designed to
+        # converge on the same period. Every close/connect_blocking pair — including the
+        # `_to_thread` hops — runs under this lock.
+        self._mqtt_lock = asyncio.Lock()
         self._tasks: set = set()
         self._poll_task = None
+        # Set on teardown so the poll task's done-callback can tell "died" from
+        # "dismantled"; see _on_poll_task_done.
+        self._closing = False
+        # Backoff walk for restarting a poll task that died on its own.
+        self._restart_step = 0
+        self._restart_delay = MQTT_BACKOFF_S[0]
+        # Backoff walk for retrying MQTT start-up when the session carries no AWS
+        # credentials; see _schedule_mqtt_retry.
+        self._mqtt_retry_task = None
+        self._mqtt_retry_step = 0
+        # Gate 0 Q4: log the cloud's per-device `connected` flag once per boot rather
+        # than every 300 s cycle.
+        self._logged_connected = False
+        # Event-driven reconnect: the task walking MQTT_BACKOFF_S while the push link is
+        # down, and the step it is on. A connection resets the step (see _on_mqtt_connected).
+        self._reconnect_task = None
+        self._backoff_index = 0
+        # The three availability/freshness signals. They answer three different questions
+        # and no two of them are substitutes:
+        #   _connected_registry — device <-> cloud, the cloud's own statement (authority)
+        #   _rest_failures      — cloud <-> us over REST (the link that carries control)
+        #   _last_report_at     — cloud <-> us over MQTT (the only source of live state)
+        self._connected_registry = None
+        self._last_report_at = None
+        # Consecutive poll cycles whose device-list read failed, and the REST arm of the
+        # matrix in full. Availability is driven by this rather than by "did _poll_once
+        # throw": F2 gave every sub-call its own guard, so the method throwing stopped
+        # being a signal about the link at all. It is a count and not a timestamp on
+        # purpose — the matrix is specified as "two consecutive cycles", and an age
+        # threshold would have to be re-derived from the jittered poll interval and could
+        # then disagree with the count at the boundary. One fact, one signal.
+        self._rest_failures = 0
+        # Staleness is measured from the last report, or from boot for a device that has
+        # never reported at all — which is precisely the state the marker exists for.
+        self._started_at = time.monotonic()
 
         for capability, listener in (
             ("onoff", self._on_set_power),
@@ -137,14 +202,77 @@ class AironeDevice_(device.Device):
 
         self.log(f"{self.get_name()} init (seq={self._device_seq}, phys={self._physical_id})")
         self._poll_task = asyncio.create_task(self._run())
+        self._poll_task.add_done_callback(self._on_poll_task_done)
 
     async def on_uninit(self) -> None:
-        if self._poll_task is not None:
-            self._poll_task.cancel()
-        if self._mqtt is not None:
-            await self._to_thread(self._mqtt.close)
+        await self._teardown()
+
+    async def _teardown(self) -> None:
+        """Cancel every task this device owns, *wait* for them, and only then close MQTT.
+
+        The await is the whole point for the asyncio half (M5). `.cancel()` returns
+        immediately, so without it `close()` runs while `_run` may still be sitting inside
+        `_poll_once`; if that `_run` reaches `_ensure_mqtt` before the cancellation lands,
+        it finds `_mqtt` freshly emptied and builds a brand-new client — the device
+        resurrects its own MQTT connection in the middle of being dismantled.
+
+        What the gather does *not* do is stop an executor thread, and the only blocking
+        calls those tasks make are `_to_thread(close)` / `_to_thread(connect_blocking)`.
+        Cancelling one of those raises in the coroutine at once while the pool worker runs
+        on, so this can return from `gather` with a `connect_blocking` still in flight.
+        Two things close that: `_mqtt_lock`, taken below so no cancelled-but-still-running
+        *coroutine* can be mid-sequence, and NavienMqtt's own refusal to install (or its
+        unwinding of) a client while `_closing` is set — which is what actually covers the
+        thread. Neither alone is enough.
+
+        `_tasks` is swept here too (readbacks, reapplies, the connect watchdog): before
+        this, nothing ever cancelled them.
+        """
+        self._closing = True
+        pending = [t for t in (self._poll_task, self._reconnect_task, self._mqtt_retry_task)
+                   if t is not None]
+        # Snapshotted: the tasks' own done-callbacks discard from this set as they finish.
+        pending += list(self._tasks)
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+        # Acquired after the cancellations, never before: a task holding it would have to
+        # be cancelled to release it, and it cannot be cancelled by a teardown that is
+        # itself parked on the lock.
+        async with self._mqtt_lock:
+            if self._mqtt is not None:
+                await self._to_thread(self._mqtt.close)
 
     # --- lifecycle ---------------------------------------------------------
+
+    def _on_poll_task_done(self, task) -> None:
+        """Restart the poll loop if it died, and stay out of the way if it was torn down.
+
+        Both omissions here would be bugs. `on_uninit` cancels without awaiting and the
+        cancellation lands on the bare `asyncio.sleep` outside the try, so a dismantled
+        task also ends up here — only `task.cancelled()` separates the two cases.
+        And `_poll_task` must be reassigned: otherwise a later `on_uninit` cancels the
+        dead original, the restarted loop outlives the device, and it goes on calling
+        `set_capability_value` on a torn-down Device.
+        """
+        if task.cancelled() or self._closing:
+            return
+        exc = task.exception()
+        self.log(f"navien: poll task died ({exc!r}); restarting in {self._restart_delay}s")
+        self._poll_task = asyncio.create_task(self._restart_poll())
+        self._poll_task.add_done_callback(self._on_poll_task_done)
+
+    async def _restart_poll(self) -> None:
+        """Wait one MQTT_BACKOFF_S step, then re-enter `_run`.
+
+        Every restart is logged with its exception (see the caller) — a line that keeps
+        repeating is the signal that a real crash is hiding inside this loop.
+        """
+        await asyncio.sleep(self._restart_delay)
+        self._restart_step = min(self._restart_step + 1, len(MQTT_BACKOFF_S) - 1)
+        self._restart_delay = MQTT_BACKOFF_S[self._restart_step]
+        await self._run()
 
     async def _run(self) -> None:
         """Log in, start MQTT push, then poll REST forever as the fallback."""
@@ -154,17 +282,38 @@ class AironeDevice_(device.Device):
             await self._poll_once(initial=True)
         except Exception as exc:
             self.log(f"initial poll failed: {exc}")
-        await self._safe_available()
+            # Only when the initial poll never reached its own availability verdict. A
+            # device must not start life greyed out because the session was still coming up.
+            await self._safe_available()
+        # The boot attempt is deliberately outside the matrix's two-cycle budget: it is
+        # already excused above, so counting it would make the first real cycle the second
+        # strike and grey the device out one tick after start-up.
+        self._rest_failures = 0
 
+        # One-shot 0-30 s offset (POLL_START_JITTER of the tick) applied to the first loop
+        # sleep only, never before the initial poll — de-phasing the three device types
+        # must not cost the user half a minute of empty tiles at boot.
+        offset = POLL_INTERVAL_S * random.uniform(0.0, POLL_START_JITTER)
         while True:
-            await asyncio.sleep(POLL_INTERVAL_S)
+            delay = POLL_INTERVAL_S * random.uniform(1 - POLL_JITTER, 1 + POLL_JITTER) + offset
+            offset = 0.0
+            self.log(f"navien: next poll in {delay:.0f}s")
+            await asyncio.sleep(delay)
             try:
                 await self._poll_once()
-                await self._ensure_mqtt()
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
                 self.log(f"poll failed: {exc}")
+            # REST and MQTT are independent links, so they get independent guards. Sharing
+            # one `try` meant a single failed REST read cancelled that cycle's reconnect
+            # check, and the push link stayed down for another full interval for no reason.
+            try:
+                await self._ensure_mqtt()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                self.log(f"mqtt check failed: {exc}")
 
     async def _acquire_api(self) -> None:
         """Get the app-wide shared Navien session, retrying rather than giving up.
@@ -191,40 +340,272 @@ class AironeDevice_(device.Device):
         paho reconnects transient blips on its own, but the presigned WebSocket path
         expires, so a lasting drop needs a fresh login (which re-mints the AWS creds
         via secured-sign-in) and a clean reconnect.
+
+        Demoted, not deleted. `_on_mqtt_disconnected` now recovers the link in seconds
+        instead of up to a poll tick, so this is a cheap once-per-cycle sanity net for the
+        cases no event can report — a client that never got built, or one paho believes is
+        up while nothing arrives. It is kept deliberately as the rollback target: reverting
+        the event-driven path leaves this behind, still working on its own.
+
+        The whole body runs under `_mqtt_lock` (B3). The `connected` early-out below reads
+        like a guard against doing this twice, but it is inert in exactly the case that
+        matters: while a reconnect is in flight the client is *not* connected, so the check
+        waves this cycle straight through into a second close/connect on the same object.
         """
-        if self._mqtt is None:
+        async with self._mqtt_lock:
+            if self._mqtt is None:
+                await self._start_mqtt_locked()
+                return
+            if self._mqtt.connected:
+                return
+            self.log("mqtt not connected; refreshing credentials and reconnecting")
+            try:
+                # This path never went through `_authed`, so it was the one place where
+                # every device re-logged in on its own schedule — and on this account each
+                # login invalidates the previous session, so N devices reconnecting
+                # together used to bounce each other. The generation is captured now and
+                # handed to the session: if a sibling already minted credentials seconds
+                # ago, this one reuses them.
+                await self._api.login_if_stale(self._api.auth_gen)
+                await self._to_thread(self._mqtt.close)
+                await self._to_thread(self._mqtt.connect_blocking)
+            except Exception as exc:
+                self.log(f"mqtt reconnect failed: {exc}")
+
+    # --- event-driven reconnect (F3) ---------------------------------------
+
+    def _on_mqtt_connected(self) -> None:
+        """The push link came up. Already marshalled onto the loop by NavienMqtt.
+
+        Deliberately does *not* reset `_backoff_index` — see `_after_connect`. A flapping
+        link reaches this callback on every flap, so resetting here made the walk restart
+        at MQTT_BACKOFF_S[0] each time and turned the backoff into a fixed 5 s retry with
+        a full two-step `login()` behind it (`login_if_stale` is handed the current
+        generation, so a lone device never dedups against anyone).
+        """
+        if self._closing:
+            return
+        self._spawn(self._after_connect())
+
+    def _on_mqtt_disconnected(self) -> None:
+        """The push link went down. Already marshalled onto the loop by NavienMqtt."""
+        if self._closing:
+            return
+        if self._reconnect_task is not None and not self._reconnect_task.done():
+            return
+        self._reconnect_task = asyncio.create_task(self._reconnect_loop())
+
+    async def _reconnect_loop(self) -> None:
+        """Walk MQTT_BACKOFF_S until the push link is back, saturating at 300 s.
+
+        F3: paho's own `reconnect_delay_set` retries the *same* presigned path forever, and
+        that path carries an STS token with no `X-Amz-Expires` — so once the credentials
+        behind it go stale, paho can retry until the heat death of the universe and never
+        succeed. Only a fresh login re-mints them, which paho cannot do. Recovery therefore
+        has to live out here, and before this it was pinned to the 300 s poll tick.
+        """
+        # A local counter, not `_backoff_index`: the index saturates at the last step, so
+        # reusing it would print "attempt 6" forever and hide how long the link has been down.
+        attempt = 0
+        while not self._closing:
+            attempt += 1
+            delay = MQTT_BACKOFF_S[self._backoff_index]
+            self._backoff_index = min(self._backoff_index + 1, len(MQTT_BACKOFF_S) - 1)
+            self.log(f"navien mqtt: reconnect attempt {attempt} in {delay}s")
+            await asyncio.sleep(delay)
+            if self._closing:
+                return
+            ok = False
+            try:
+                # B3: held across the whole attempt, `_to_thread` hops included, so this
+                # cannot interleave with the poll task's `_ensure_mqtt` / `_sync_home_seq`
+                # or with the missing-credentials retry.
+                async with self._mqtt_lock:
+                    if self._mqtt is None:
+                        await self._start_mqtt_locked()
+                        ok = self._mqtt is not None
+                    else:
+                        # `login_if_stale` rather than `login`: several devices lose the
+                        # link to the same outage and this account invalidates the previous
+                        # session on every login, so unconditional logins would bounce each
+                        # other.
+                        await self._api.login_if_stale(self._api.auth_gen)
+                        await self._to_thread(self._mqtt.close)
+                        await self._to_thread(self._mqtt.connect_blocking)
+                        ok = True
+            except Exception as exc:
+                self.log(f"navien mqtt: reconnect failed: {exc}")
+            if ok:
+                # As far as this loop can tell, that is success: `connect_blocking` returns
+                # right after `loop_start()` and CONNACK lands later on paho's own thread.
+                # If it never lands, `_on_disconnect` arms this loop again — and the walk is
+                # only reset by a connection that *held* (`_after_connect`, once a frame has
+                # actually arrived), so a flapping link keeps walking outward. Resetting on
+                # `_on_connect` did not do that: a flap reaches `_on_connect` every time, so
+                # the index went back to 0 on each cycle and the "backoff" was a 5 s loop
+                # with a full login in it.
+                return
+
+    async def _after_connect(self) -> None:
+        """Re-request state on every successful (re)connect, then watch for the answer.
+
+        Not "functionally identical to boot", which is why it exists: `connect_blocking`
+        returns straight after `loop_start()`, `subscribe()` happens later inside
+        `_on_connect` on paho's thread, and the client id is regenerated per connection
+        while the server routes replies by `clientId`. At boot that race is hidden by
+        accident — `_poll_once(initial=True)` makes two REST round trips before it reaches
+        the status request. A reconnect has no such delay, so the request is dispatched from
+        `_on_connect` itself, after subscribe and after `connected` is True.
+
+        Deliberately NOT the rest of `_poll_once`: the model-code refresh, the humidity
+        range sync and the trailing `_apply_state()` all ride the poll tick, which is at
+        most POLL_INTERVAL_S away, and none of them changes on a reconnect.
+        """
+        mark = self._last_report_at
+        await self._request_status()
+        # F14: INITIAL_STATE_TIMEOUT_S was a dead constant. It only becomes a real watchdog
+        # now that *every* connection is followed by a request — before this, silence after
+        # a reconnect was normal, so a timeout would have been pure false alarm.
+        await asyncio.sleep(INITIAL_STATE_TIMEOUT_S)
+        if self._closing:
+            return
+        if self._last_report_at == mark:
+            self.log(f"navien mqtt: no state within {INITIAL_STATE_TIMEOUT_S}s of connect")
+            return
+        # B5. This, and not `_on_connect`, is where the reconnect walk earns its reset: the
+        # link has carried a frame and is still up, which is the only evidence available
+        # that the connection *held* rather than flapped. Resetting on the connect callback
+        # instead meant a flapping link — which does reach `_on_connect`, every flap —
+        # walked back to MQTT_BACKOFF_S[0] each time, i.e. one full two-step login every
+        # few seconds on an account that allows a single session.
+        if self._mqtt is not None and self._mqtt.connected:
+            self._backoff_index = 0
+
+    def _schedule_mqtt_retry(self) -> None:
+        """Retry MQTT start-up on the MQTT_BACKOFF_S walk instead of waiting a poll tick.
+
+        Only safe because Phase 1 made `_secured_sign_in` raise on an empty body: before
+        that, a login could report success with `aws` still None, and retrying would have
+        spun straight back into that silent half-login.
+
+        One task at a time, and the walk saturates at MQTT_BACKOFF_S[-1] (= the poll
+        interval), so the worst case is no worse than the behaviour it replaces.
+        """
+        if self._closing:
+            return
+        pending = self._mqtt_retry_task
+        # `is not current_task()` is load-bearing. The retry below re-enters `_start_mqtt`,
+        # which lands right back here when the credentials still have not arrived — and at
+        # that moment `_mqtt_retry_task` is the task doing the asking, so a plain
+        # "already scheduled?" check would refuse and the walk would stop after one step.
+        # The handle is kept (rather than cleared) so `on_uninit` can still cancel it.
+        if (pending is not None and not pending.done()
+                and pending is not asyncio.current_task()):
+            return
+        delay = MQTT_BACKOFF_S[self._mqtt_retry_step]
+        self._mqtt_retry_step = min(self._mqtt_retry_step + 1, len(MQTT_BACKOFF_S) - 1)
+        self.log(f"navien mqtt: no AWS credentials; retrying in {delay}s")
+
+        async def retry() -> None:
+            await asyncio.sleep(delay)
+            if self._closing:
+                return
+            try:
+                # Retrying alone can never help: only a fresh secured-sign-in mints AWS
+                # credentials. `login_if_stale` keeps that from becoming a login storm when
+                # several devices are waiting on the same missing credentials.
+                await self._api.login_if_stale(self._api.auth_gen)
+            except Exception as exc:
+                self.log(f"mqtt retry login failed: {exc}")
+                self._schedule_mqtt_retry()
+                return
             await self._start_mqtt()
-            return
-        if self._mqtt.connected:
-            return
-        self.log("mqtt not connected; refreshing credentials and reconnecting")
-        try:
-            await self._api.login()
-            await self._to_thread(self._mqtt.close)
-            await self._to_thread(self._mqtt.connect_blocking)
-        except Exception as exc:
-            self.log(f"mqtt reconnect failed: {exc}")
+
+        self._mqtt_retry_task = asyncio.create_task(retry())
 
     async def _start_mqtt(self) -> None:
+        """Build the MQTT client, serialised against every other client mutation (B3).
+
+        The entry point for callers that do not already hold `_mqtt_lock`: `_run` at boot
+        and the missing-credentials retry task. `_ensure_mqtt` and `_reconnect_loop` hold
+        it already and call `_start_mqtt_locked` directly — asyncio.Lock is not reentrant,
+        so going through here would deadlock them.
+        """
+        async with self._mqtt_lock:
+            await self._start_mqtt_locked()
+
+    async def _start_mqtt_locked(self) -> None:
+        # Gate 0 Q6. `0/airone/#` is a perfectly *valid* topic filter, so a home_seq of 0
+        # connects and subscribes successfully and then no frame ever arrives — a healthy
+        # looking connection to the wrong tree. Returning without assigning `self._mqtt`
+        # is what keeps `_ensure_mqtt` retrying instead of parking on it.
+        if not self._home_seq:
+            self.log("navien: home_seq is 0 — refusing to start MQTT "
+                     "(재로그인 후 앱을 재시작하세요)")
+            return
         if not self._api.aws:
             self.log("no AWS credentials; realtime push disabled, polling only")
+            self._schedule_mqtt_retry()
             return
+        # A restarted poll task re-enters `_run` and lands back here, so an earlier client
+        # can still be alive. Dropping the reference without closing it would leave paho's
+        # network thread running for a connection nothing reads.
+        if self._mqtt is not None:
+            await self._to_thread(self._mqtt.close)
+            self._mqtt = None
         loop = asyncio.get_running_loop()
+        # One MQTT client per device is a decision, not an omission awaiting cleanup, and
+        # it is gated on exactly one condition: build an app-level MQTT/session hub only
+        # when a *second device of the same type* is added. Until then the topic prefixes
+        # differ per device, so there are no duplicate frames for a hub to deduplicate, and
+        # the one real benefit a hub would bring — single ownership of `login()` — is
+        # already held by `login_if_stale(gen)`, which buys it without putting a new shared
+        # component on the realtime path. Nothing here is built in anticipation of that hub.
         self._mqtt = NavienMqtt(
             loop=loop,
             user_seq=self._api.user_seq,
-            home_seq=self._home_seq,
+            home_seq_provider=lambda: self._home_seq,
             creds_provider=lambda: self._api.aws,
             on_reported=self._on_reported,
+            on_connected=self._on_mqtt_connected,
+            on_disconnected=self._on_mqtt_disconnected,
             log=self.log,
         )
         try:
             await self._to_thread(self._mqtt.connect_blocking)
+            self._mqtt_retry_step = 0        # a connection resets the backoff walk
         except Exception as exc:
             self.log(f"mqtt connect failed (falling back to polling): {exc}")
             self._mqtt = None
 
     # --- polling / initial state ------------------------------------------
+
+    async def _sync_home_seq(self) -> None:
+        """Pick up a home_seq the settings page rewrote, and resubscribe if it changed.
+
+        `on_init` read this once, and `save_credentials` overwrites it whenever the account
+        is re-entered, so a device could spend the rest of its life addressing the wrong
+        home. Re-reading it is only half the fix: the topic filter is chosen inside
+        `_on_connect`, so an already-connected client stays subscribed to the old tree no
+        matter what this attribute says. Dropping the client is what makes `_ensure_mqtt`
+        build a new one, and the provider then hands it the new filter.
+        """
+        raw = await compat.setting_get(self.homey, SETTING_HOME_SEQ)
+        try:
+            home_seq = int(raw or 0)
+        except (TypeError, ValueError):
+            return
+        if home_seq == self._home_seq:
+            return
+        self.log(f"navien: home_seq changed {self._home_seq} -> {home_seq}; resubscribing")
+        self._home_seq = home_seq
+        # Under the lock (B3): dropping the client is a mutation like any other, and a
+        # reconnect attempt running at the same moment would otherwise close and rebuild
+        # the object this is trying to discard.
+        async with self._mqtt_lock:
+            if self._mqtt is not None:
+                await self._to_thread(self._mqtt.close)
+                self._mqtt = None
 
     async def _poll_once(self, initial: bool = False) -> None:
         """Re-read device state and air-quality over REST.
@@ -233,21 +614,63 @@ class AironeDevice_(device.Device):
         command — shadow state only arrives on change otherwise, so a just-added device
         would sit empty until first touched.
         """
+        await self._sync_home_seq()
         wants_sensors = True
-        for raw in await self._api.list_devices(self._home_seq):
+        # A device that is not in this cycle's list is *unknown*, not offline: carrying
+        # last cycle's True forward would let a device vanish from the account and keep
+        # reading as connected.
+        self._connected_registry = None
+        # The device list was the one unguarded call left in this method (the air-sensor
+        # read, the status request and the humidity-range sync all guard themselves), so
+        # it alone could abort the rest of the cycle.
+        rest_ok = False
+        try:
+            devices = await self._api.list_devices(self._home_seq)
+            rest_ok = True
+        except Exception as exc:
+            self.log(f"device list read failed: {exc}")
+            devices = []
+        for raw in devices:
+            if not self._logged_connected:
+                # Gate 0 Q4: the cloud publishes a per-device online flag that this port
+                # throws away (the whole device list is already fetched and walked, so
+                # reading one more field costs nothing). Recorded here, acted on later.
+                flag = raw.get("connected")
+                self.log(f"navien: device-list connected={flag!r} "
+                         f"({type(flag).__name__}) for {raw.get('deviceId')!r}")
             unit = AironeDevice.from_raw(raw, log=self.log)
             if unit and str(unit.device_id) == self._device_id:
+                # The one field in this response that is live rather than a capability
+                # descriptor, and the reason the device list is still read every cycle.
+                self._connected_registry = unit.connected_registry
                 # Refresh the model code (control-topic addressing) from the live list,
                 # so a device paired before the model-code fix corrects itself.
                 if unit.model_code:
                     self._model_code = unit.model_code
-                # Only the humidity *range* is taken from the device-list metadata. Its
-                # roomController.mode is a list (not the live int) and it carries no
-                # airVolume/option/running, so merging it into the live state would clobber
-                # what MQTT reported — the status request below refreshes the live values.
+                # Never `self._unit.apply_reported(unit.reported)`. That is settled from
+                # upstream rather than inferred from the payloads we happen to have seen:
+                # navien_smart_ha's `AironeDevice.parse` reads this very response and
+                # deliberately sets no `reported` — the field is a default_factory dict
+                # that only MQTT ever fills — and the source states outright that power,
+                # running state and errors come from the *status* response. Its coordinator
+                # then re-attaches the MQTT state (`device.reported = old.reported`) on
+                # every device-list refresh, i.e. it treats this response as the thing that
+                # must not win. Merging it anyway is upstream issue #12: `roomController.
+                # mode` here is the supported-combinations array, not the live int, so the
+                # mode blanks out and the fan picker goes unavailable.
+                #
+                # Three things are read off this transient unit and none of them is live
+                # state — the humidity range and `wants_air_sensors` are capability
+                # descriptors, and `connected` (above) is the cloud's link flag. Fenced by
+                # test_poll_once_never_merges_device_list_into_live_state and
+                # test_humidity_range_comes_from_the_transient_unit.
                 await self._sync_humidity_range(unit.humidity_range())
                 wants_sensors = unit.wants_air_sensors()
                 break
+        # Only once we have actually seen a list — a failed read must not silently use up
+        # the one-shot, or Gate 0 Q4 gets no answer at all when the first poll fails.
+        if devices:
+            self._logged_connected = True
 
         if wants_sensors:
             try:
@@ -256,13 +679,79 @@ class AironeDevice_(device.Device):
             except Exception as exc:
                 self.log(f"air-sensor read failed: {exc}")
 
+        # The probe. This was `if self._unit.is_on or initial:` — a *power* gate, which is
+        # a mis-port of upstream's docstring (PORTING.md:81); upstream's code gates on
+        # connectivity (coordinator.py:570-572). The power form is a permanent trap: the
+        # only other caller is the post-command readback. The plan replaced it with a
+        # connectivity gate (`initial or self._connected_registry is not False`) on the
+        # theory that a unit Homey believes is off could never be asked again, so an
+        # external power-on would go unseen until someone commanded it from Homey.
+        #
+        # Measured on real hardware (Gate 0 Q5, 2026-08-03) and the theory does not hold:
+        # the appliance publishes state changes over MQTT unprompted. With the unit off
+        # and no REST request made since the previous tick, powering it on from the phone
+        # app updated the tile before the next poll. So the only hole the power gate ever
+        # left is the reconnect gap — a change that happens while we are not subscribed —
+        # and `on_connected` closes that directly by re-requesting state after every
+        # subscribe. The connectivity gate bought a second cover for a hole that already
+        # has one, at 288 status POSTs a day per powered-off-but-online unit against an
+        # undocumented API. Reverted; `connected_registry` still drives availability.
+        #
+        # Boot note: the guard inside `_request_status` also tests `self._mqtt.connected`,
+        # so this call can be suppressed at boot when the CONNACK has not landed yet. That
+        # is covered — better — by `on_connected`, which fires after subscribe with the
+        # link known good. Anyone tracing the boot path will see the probe apparently
+        # disappear; it moved.
         if self._unit.is_on or initial:
             await self._request_status()
 
+        # Reset on an explicit success, never inferred from "_poll_once did not throw":
+        # F2 gave every sub-call in this method its own guard, so the absence of an
+        # exception stopped saying anything about the REST link. That inference is what
+        # would have made this signal unreadable.
+        if rest_ok:
+            self._rest_failures = 0
+        else:
+            self._rest_failures += 1
+        await self._update_availability()
         await self._apply_state()
 
+    async def _update_availability(self) -> None:
+        """The availability matrix (plan §5 Phase 3.3), in priority order.
+
+        Only two arms take the device away from the user, and both are statements of fact
+        rather than heuristics. The third failing arm — REST fine, device online, reports
+        stale — deliberately stays *available*: control genuinely reaches the appliance,
+        so greying the tile out would remove working controls to report a display problem.
+        That arm gets the staleness marker in `_apply_state` instead.
+        """
+        if self._rest_failures >= 2:
+            await self._safe_unavailable("나비엔 서버에 연결할 수 없습니다")
+            return
+        if self._connected_registry is False:
+            # The cloud's own statement about its link to the appliance. A control POST
+            # will not arrive, so a stale marker here would be a lie by omission.
+            await self._safe_unavailable("기기가 오프라인입니다")
+            return
+        await self._safe_available()
+
+    def _is_stale(self) -> bool:
+        """True once the newest MQTT report is older than STALE_AFTER_S.
+
+        Measured from boot for a device that has never reported: that is not an edge case
+        to tolerate but the exact state the marker exists for — a tile showing nothing,
+        with no indication that nothing is what it means.
+        """
+        since = self._last_report_at if self._last_report_at is not None else self._started_at
+        return (time.monotonic() - since) > STALE_AFTER_S
+
     async def _request_status(self) -> None:
-        if self._mqtt is None:
+        # 7.8, and deliberately a superset of "is None or _closing": the literal form does
+        # not test the connection, so it leaves the actual defect — POSTing a status
+        # request every cycle to a listener that died — completely in place. Safe only
+        # because `on_connected` is dispatched from `_on_connect` after `_connected = True`,
+        # so the reconnect's own re-request always finds `connected` already True.
+        if self._mqtt is None or self._closing or not self._mqtt.connected:
             return
         try:
             await self._airone(AIRONE_CMD_STATUS, desired=None)
@@ -273,8 +762,26 @@ class AironeDevice_(device.Device):
 
     def _on_reported(self, device_id: str, reported: dict) -> None:
         """MQTT callback (already marshalled onto the loop)."""
-        if device_id and device_id not in (self._device_id, self._physical_id):
+        # B6, and the only one of the three MQTT callbacks that needed saying twice:
+        # `_on_mqtt_connected`/`_on_mqtt_disconnected` are dispatched through
+        # `NavienMqtt._dispatch`, which drops them once the socket is closing, but reports
+        # take a bare `call_soon_threadsafe` in `_on_message` that bypasses it entirely.
+        # A frame landing during `_teardown`'s gather would therefore spawn an
+        # `_apply_state` task *outside* the snapshot teardown cancels, and it would write
+        # capabilities on a dismantled Device.
+        if self._closing:
             return
+        if device_id and device_id not in (self._device_id, self._physical_id):
+            # I4. `extract_airone_reported` falls back to the topic's last segment when
+            # roomController carries no deviceId, which on a `.../res` topic yields the
+            # literal "res" — a real frame that then drops out of this filter in complete
+            # silence, indistinguishable from the push link being dead.
+            self.log(f"navien mqtt: unmatched frame device_id={device_id!r} matched=False "
+                     f"(expected {self._device_id!r} / {self._physical_id!r})")
+            return
+        # The freshness clock. Only meaningful because the probe above is now unconditional
+        # for an online device: "older than two probes" reads as failure, not as idleness.
+        self._last_report_at = time.monotonic()
         self._unit.apply_reported(reported)
         # If this report confirms the change we're holding for, end the hold now so the
         # confirmed state shows immediately instead of waiting out the window.
@@ -451,6 +958,16 @@ class AironeDevice_(device.Device):
             except Exception as exc:
                 last = exc
                 self.log(f"airone {command} failed (attempt {attempt + 1}/3): {exc}")
+                # F10. The retry above exists for *transient* failures, and a 400 is the
+                # server's verdict on the command itself — the same body will be rejected
+                # the same way, so the remaining attempts buy nothing and cost the user
+                # 3.6 s of a frozen tile (0.6 + 1.2 + 1.8) plus two more control POSTs at
+                # an appliance that already said no. `code` is None on every
+                # NavienNetworkError, which is what keeps the retryable case retryable:
+                # a request that never reached the server carries no verdict to obey.
+                if getattr(exc, "code", None) == CODE_BAD_REQUEST:
+                    self.log(f"airone {command} rejected (400); not retrying")
+                    break
                 await asyncio.sleep(0.6 * (attempt + 1))
         raise last
 
@@ -468,7 +985,19 @@ class AironeDevice_(device.Device):
         # Read-only reflections of the appliance's own state — always applied so a change
         # (e.g. entering '자동 건조중') shows immediately, never held by the settle window.
         await self._set("navien_running_state", u.running_name(self._language))
-        await self._set("navien_airone_status", u.status_text(self._language))
+        # The staleness marker rides the existing free-text status capability, so it needs
+        # no new capability and no manifest change, and it sits outside the settle gate
+        # below so an optimistic hold can never suppress it.
+        #
+        # The non-None floor is mandatory, not defensive: `status_text()` returns None on
+        # an empty model and `_set` returns early on None, so without it a device that
+        # connected and never received a frame would show no status line *and* no marker —
+        # the one state the marker is most needed in.
+        text = u.status_text(self._language)
+        if self._is_stale():
+            text = (f"{text} · {i18n.translate('stale', self._language)}" if text
+                    else i18n.translate("stale_alone", self._language))
+        await self._set("navien_airone_status", text)
         await self._set("navien_auto_dry_percent", self._num(u.auto_dry_percent))
         # User-set controls (power/mode/fan/humidity) are held at the value the user just
         # set until the appliance settles, so a lagging report can't snap them back.

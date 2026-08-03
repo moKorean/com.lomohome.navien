@@ -4,5 +4,7 @@
     "login_failed": "Sign-in failed. Check your Navien account ID and password.",
     "no_home": "No home is registered on this account.",
     "command_failed": "The appliance did not accept the command."
-  }
+  },
+  "stale": "stale",
+  "stale_alone": "no status yet"
 }

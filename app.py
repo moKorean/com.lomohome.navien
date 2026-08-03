@@ -68,15 +68,66 @@ class NavienApp(homey_app.App):
                 await api.login()
             return api
 
-    async def reauth(self, username: str, password: str) -> None:
-        """Point the shared session at new credentials and log in to validate them.
+    async def logout(self) -> NavienApi | None:
+        """Stop every running device before the account is removed.
 
-        Used by repair: it updates the one shared client in place (so running devices
-        recover on their next request) and raises if the credentials are wrong — the
-        caller only writes them to settings once this succeeds.
+        Dropping `self._api` does nothing on its own: each device caches the object it got
+        from `_acquire_api` and never asks for it again, so it would keep polling a live
+        session for an account the user just deleted. There is no device registry to reach
+        through either — `homey` exposes no get_devices/get_driver here — so the object the
+        devices already hold *is* the seam, and flipping `disabled` on it is what actually
+        stops their traffic.
+
+        `self._api` is deliberately *kept*. Clearing it as well used to make the logout
+        permanent: `_client` would then build a brand-new NavienApi on the next login while
+        every device went on holding the disabled one, and nothing ever cleared `disabled`.
+        Devices only re-enter `_run` (the one place `_acquire_api` is called) if their poll
+        task dies, and that loop catches everything short of CancelledError — so they never
+        re-fetched the session either. Re-entering correct credentials appeared to succeed
+        and every device stayed dead until the app was restarted. Keeping the one object and
+        letting `reauth` re-enable it is what makes the recovery real, and it is also the
+        only shape that preserves one session per account.
+
+        Returns the disabled client so a caller can assert on it.
         """
         async with self._api_lock:
-            await self._client(username, password).login()
+            api = self._api
+            if api is not None:
+                api.disabled = True
+                self.log("navien: shared session disabled (logged out)")
+            return api
+
+    async def reauth(self, username: str, password: str) -> NavienApi:
+        """Point the shared session at new credentials and log in to validate them.
+
+        Used by repair and by the settings page: it updates the one shared client in place
+        (so running devices recover on their next request) and raises if the credentials
+        are wrong — the caller only writes them to settings once this succeeds.
+
+        Because the update is in place and happens *before* `login()` is attempted, a
+        rejected password leaves the shared session holding it; every caller must restore
+        the saved account on failure (pairing._restore_shared, api._restore_shared).
+
+        This is also where a logged-out session comes back to life, and it has to be here
+        rather than in `_client`: after "계정 삭제" the user typically re-enters *the same*
+        account, so `_client`'s `!=` comparison never fires and a re-enable hung off it
+        would never run. `disabled` is cleared for the attempt and put back if the attempt
+        fails, so a wrong password leaves a logged-out account logged out instead of
+        letting every device resume polling with credentials the server just rejected.
+
+        Returns the shared client so the caller can read `home_seqs()` off the session it
+        just validated instead of opening a second one.
+        """
+        async with self._api_lock:
+            api = self._client(username, password)
+            was_disabled = api.disabled
+            api.disabled = False
+            try:
+                await api.login()
+            except Exception:
+                api.disabled = was_disabled
+                raise
+            return api
 
     async def _seed_ui_language(self) -> None:
         """Recover the UI language reported by an earlier pairing session if unset.

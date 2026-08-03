@@ -243,3 +243,51 @@ def test_topic_slash_escaping():
                                    "cmd/rc/v2/1/RC/remote/power")
     assert "cmd\\/rc\\/v2\\/1\\/RC\\/remote\\/power\\/res" in esc
     assert '"cmd\\/rc\\/v2\\/1\\/RC\\/remote\\/power"' in esc
+
+
+def test_auto_dry_percent_survives_a_command_in_a_humidity_mode():
+    """The F16 regression: our own control path deleted the auto-dry progress.
+
+    `_change_mode` sends `additionalData` as a bare dict (navien/airone.py:492) and
+    `_optimistic` feeds that same dict straight back through `apply_reported`
+    (airone/device.py:457). A wholesale list replacement drops the type-4 entry, and
+    '자동건조 (90%)' silently degrades to '자동건조' — while the unit is still drying.
+    """
+    u = airone.AironeDevice.from_raw(_sample_raw())      # mode 9 (제습)
+    u.apply_reported({"roomController": {"running": 4, "additionalData": [
+        {"type": 3, "value": 45}, {"type": 4, "value": 90},
+    ]}})
+    assert u.auto_dry_percent == 90
+    assert u.status_text("ko") == "자동건조 (90%)"
+
+    # Exactly what a fan command does: push the desired payload through apply_reported.
+    u.apply_reported(u.desired_fan(4))
+
+    assert u.auto_dry_percent == 90
+    assert u.status_text("ko") == "자동건조 (90%)"
+
+
+def test_auto_dry_percent_accepts_a_dict_additional_data():
+    """A bare dict must read like a one-item list. Without the normalisation `reversed()`
+    yields the dict's *keys*, every isinstance check fails, and the number disappears."""
+    raw = _sample_raw()
+    room = raw["Properties"]["data"]["did"]["reported"]["roomController"]
+    room["running"] = 4
+    room["additionalData"] = {"type": 4, "value": 77}
+    u = airone.AironeDevice.from_raw(raw)
+    assert u.auto_dry_percent == 77
+
+
+def test_control_payload_shape_unchanged():
+    """Regression fence: the wire shape stays a dict.
+
+    F16 is fixed on the *reading* side; `additionalData` still goes out as a dict, because
+    that is the payload verified against real hardware.
+    """
+    u = airone.AironeDevice.from_raw(_sample_raw())      # 제습, humidity 55
+    fan = u.desired_fan(4)["roomController"]
+    assert fan["additionalData"] == {"type": 1, "value": 55}
+    humidity = u.desired_humidity(50)["roomController"]
+    assert humidity["additionalData"] == {"type": 1, "value": 50}
+    assert isinstance(fan["additionalData"], dict)
+    assert isinstance(humidity["additionalData"], dict)
