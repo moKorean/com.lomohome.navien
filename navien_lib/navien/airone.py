@@ -632,6 +632,24 @@ def parse_air_sensors(sensor_list: list) -> dict:
     return out
 
 
+def air_sensor_changes(previous: dict, current: dict) -> str:
+    """`kind=value` for every reading whose value moved, in a stable order.
+
+    A log line, which is why it returns text and not a diff: both devices read the same
+    `/air-sensor` endpoint and the open question about them (does the AirMonitor report on
+    its own, or only through the AirOne?) is answered by watching whether these values move
+    independently. Changed readings only, so a healthy poll costs one short line and a
+    frozen feed is visible as the absence of any.
+    """
+    parts = []
+    for kind in sorted(current):
+        new = (current.get(kind) or {}).get("value")
+        old = (previous.get(kind) or {}).get("value")
+        if new != old:
+            parts.append(f"{kind}={new}")
+    return " ".join(parts)
+
+
 def parse_air_sensors_for(sensor_list: list, zone_id=None, monitor_id=None) -> dict:
     """Air readings for one AirMonitor: pick its `sensorList` entry, then flatten.
 

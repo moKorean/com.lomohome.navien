@@ -21,7 +21,7 @@ from navien_lib.const import (
     STORE_MONITOR_ID,
     STORE_ZONE_ID,
 )
-from navien_lib.navien.airone import parse_air_sensors_for
+from navien_lib.navien.airone import air_sensor_changes, parse_air_sensors_for
 
 # AirMonitor uses the standard measure_pm10 for 미세먼지 (AirOne uses navien_pm10); map
 # both so whichever capability the driver actually has gets populated. _set() skips any
@@ -173,6 +173,12 @@ class AirMonitorDevice_(device.Device):
         # Reset on an explicit success, never inferred from the absence of an exception.
         self._rest_failures = 0
         parsed = parse_air_sensors_for(sensors, self._zone_id, self._monitor_id)
+        # Deliberate instrumentation for the open question in `_update_availability`:
+        # changed readings only, so a live monitor is one short line per poll and a feed
+        # that has stopped moving shows up as "unchanged" repeating. The AirOne logs the
+        # same line from the same endpoint, which is what makes the two comparable.
+        changed = air_sensor_changes(self._sensors, parsed)
+        self.log(f"navien: air-sensor {changed or 'unchanged'}")
         if parsed:  # merge — an empty poll must not wipe the values
             self._sensors.update(parsed)
         await self._apply()
@@ -190,6 +196,23 @@ class AirMonitorDevice_(device.Device):
         say it is yesterday's. REST failure simply *is* unavailability here, there is no
         control to lose by saying so, and with no free-text capability the AirOne's marker
         has nowhere to go anyway.
+
+        OPEN — should this monitor follow its parent AirOne's `connected` flag?
+        The monitor has its own power, but it may communicate *through* the AirOne: the
+        `/air-sensor` endpoint is served by the cloud against the **AirOne's** `device_seq`,
+        which is the only seq this device has (`_parent_seq`). On 2026-08-03 the AirOne was
+        unplugged and that endpoint still answered 200 — which proves nothing either way,
+        because the cloud can serve last-known values for a monitor that has gone quiet.
+        The consequence if it does go quiet: this device stays *available* and keeps showing
+        a frozen reading with nothing to say it is frozen, which is the exact failure the
+        two-cycle rule above exists to prevent, arriving through a door it does not watch.
+        HOW TO SETTLE IT: the `navien: air-sensor …` line logged in `_poll_once` (the AirOne
+        logs the same line off the same endpoint). Unplug the AirOne and read a few cycles.
+        If the values keep moving, the monitor is independent and nothing changes here. If
+        they freeze, this device should follow the parent's `connected` flag and go
+        unavailable with it, and the flag would have to be plumbed from the AirOne's device
+        (there is no per-monitor `connected` in `GET /devices`). Not implemented on purpose:
+        the evidence does not exist yet, and guessing wrong greys out a working sensor.
         """
         if self._rest_failures >= 2:
             await self._safe_unavailable("공기질 데이터를 가져올 수 없습니다")

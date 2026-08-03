@@ -47,7 +47,7 @@ from navien_lib.const import (
     STORE_MODEL_CODE,
     STORE_PHYSICAL_ID,
 )
-from navien_lib.navien.airone import AironeDevice
+from navien_lib.navien.airone import AironeDevice, air_sensor_changes
 from navien_lib.navien.mqtt import NavienMqtt
 
 # capability -> how to read it from the model. Sensors that come from the air-quality
@@ -83,6 +83,10 @@ _FAN_IDS = {"v4", "o3", "v1", "v3", "o2"}
 # report matching what we asked for, released early) or this window elapses. Kept
 # generous because a confirming report ends it early anyway.
 _SETTLE_S = 5.0
+
+# "no value has been seen yet", which `None` cannot express here: None is a real state of
+# the cloud's `connected` flag (the key was absent from the payload).
+_UNSET = object()
 
 
 def _mode_id(u) -> str | None:
@@ -155,13 +159,22 @@ class AironeDevice_(device.Device):
         # credentials; see _schedule_mqtt_retry.
         self._mqtt_retry_task = None
         self._mqtt_retry_step = 0
-        # Gate 0 Q4: log the cloud's per-device `connected` flag once per boot rather
-        # than every 300 s cycle.
-        self._logged_connected = False
+        # The last `connected` flag this device logged, so the line is printed on every
+        # *change* including the first read. It used to be a one-shot per boot, which is
+        # the reason the 1 -> 0 transition during the hardware test left no trace at all —
+        # the flag had already been spent on the first cycle's 1. A transition is the only
+        # thing worth a line here; repeating an unchanged value 288 times a day is not.
+        self._logged_connected = _UNSET
         # Event-driven reconnect: the task walking MQTT_BACKOFF_S while the push link is
         # down, and the step it is on. A connection resets the step (see _on_mqtt_connected).
         self._reconnect_task = None
         self._backoff_index = 0
+        # When a link event last wrote `_connected_registry`, so a `GET /devices` response
+        # that was already in flight at that moment cannot overwrite it. The body of such a
+        # response is a snapshot from *before* the event, so applying it would undo a newer
+        # fact with an older one — and for a `/disconnected` that means the tile goes back
+        # to available for a full cycle, which is the exact wait this feature removes.
+        self._event_at = None
         # The three availability/freshness signals. They answer three different questions
         # and no two of them are substitutes:
         #   _connected_registry — device <-> cloud, the cloud's own statement (authority)
@@ -395,6 +408,46 @@ class AironeDevice_(device.Device):
             return
         self._reconnect_task = asyncio.create_task(self._reconnect_loop())
 
+    def _on_mqtt_event(self, device_id: str, connected: bool) -> None:
+        """The *appliance's* link to the cloud changed. Already marshalled onto the loop.
+
+        This is the fast signal, not a new authority. The cloud publishes it within about a
+        minute of the event — measured on hardware (2026-08-03): power was cut and the
+        `/disconnected` frame arrived ~65 s later; power came back and `/connected` landed
+        at 11:40:45, while the REST poll that would have restored the tile was not due until
+        ~11:45:09. Four and a half minutes of holding the answer and not using it.
+
+        The poll still overwrites `_connected_registry` every cycle from `GET /devices`, so
+        an event that was missed, or one that was wrong, is corrected by the next tick at
+        the latest. Nothing here removes or weakens that path.
+        """
+        if self._closing:
+            return
+        if device_id not in (self._device_id, self._physical_id):
+            self.log(f"navien mqtt: link event device_id={device_id!r} matched=False "
+                     f"(expected {self._device_id!r} / {self._physical_id!r})")
+            return
+        self.log(f"navien mqtt: link event connected={connected} for {device_id}")
+        self._connected_registry = connected
+        self._event_at = time.monotonic()
+        self._spawn(self._after_event(connected))
+
+    async def _after_event(self, connected: bool) -> None:
+        """Act on the link event now instead of at the next poll — that is its whole value.
+
+        The status re-request on `/connected` is the same reasoning `_after_connect` uses
+        after a resubscribe: the appliance has just come back and what it is doing is
+        unknown, and it is the appliance's own reply that fills the tile. It goes through
+        `_request_status`, so the dead-listener guard (7.8) still applies.
+        """
+        await self._update_availability()
+        # Read live, not from the captured argument: a `/connected` immediately superseded
+        # by a `/disconnected` would otherwise POST a status command to an appliance this
+        # same method just declared offline. `_update_availability` already reads live for
+        # the same reason, so the two now agree on which verdict they are acting on.
+        if self._connected_registry:
+            await self._request_status()
+
     async def _reconnect_loop(self) -> None:
         """Walk MQTT_BACKOFF_S until the push link is back, saturating at 300 s.
 
@@ -569,6 +622,7 @@ class AironeDevice_(device.Device):
             on_reported=self._on_reported,
             on_connected=self._on_mqtt_connected,
             on_disconnected=self._on_mqtt_disconnected,
+            on_event=self._on_mqtt_event,
             log=self.log,
         )
         try:
@@ -616,33 +670,52 @@ class AironeDevice_(device.Device):
         """
         await self._sync_home_seq()
         wants_sensors = True
-        # A device that is not in this cycle's list is *unknown*, not offline: carrying
-        # last cycle's True forward would let a device vanish from the account and keep
-        # reading as connected.
-        self._connected_registry = None
         # The device list was the one unguarded call left in this method (the air-sensor
         # read, the status request and the humidity-range sync all guard themselves), so
         # it alone could abort the rest of the cycle.
         rest_ok = False
+        # Stamped before the request goes out, so the reply can be compared against any
+        # link event that arrived while it was in flight.
+        started = time.monotonic()
         try:
             devices = await self._api.list_devices(self._home_seq)
             rest_ok = True
         except Exception as exc:
             self.log(f"device list read failed: {exc}")
             devices = []
+        # A response that was already in flight when an event landed describes the world
+        # from before it; applying it would undo a newer fact with an older one. Two guards,
+        # for two different non-statements: a read that *failed* says nothing about the
+        # appliance, and a read that *predates the event* says nothing about now. Without
+        # the second one a `/disconnected` is silently reverted and the tile reads available
+        # for another full cycle — the exact wait acting on the event was meant to remove.
+        superseded = self._event_at is not None and self._event_at > started
+        if superseded:
+            self.log("navien: device-list reading predates a link event; keeping the event")
+        apply_registry = rest_ok and not superseded
+        if apply_registry:
+            # A device that is not in this cycle's list is *unknown*, not offline: carrying
+            # last cycle's True forward would let a device vanish from the account and keep
+            # reading as connected.
+            self._connected_registry = None
         for raw in devices:
-            if not self._logged_connected:
-                # Gate 0 Q4: the cloud publishes a per-device online flag that this port
-                # throws away (the whole device list is already fetched and walked, so
-                # reading one more field costs nothing). Recorded here, acted on later.
-                flag = raw.get("connected")
-                self.log(f"navien: device-list connected={flag!r} "
-                         f"({type(flag).__name__}) for {raw.get('deviceId')!r}")
             unit = AironeDevice.from_raw(raw, log=self.log)
             if unit and str(unit.device_id) == self._device_id:
+                # Gate 0 Q4: the cloud publishes a per-device online flag that this port
+                # used to throw away (the whole list is already fetched and walked, so
+                # reading one more field costs nothing). Logged on every change — one entry
+                # per device rather than per list, because one remembered value cannot be
+                # compared against several devices' flags.
+                flag = raw.get("connected")
+                if flag != self._logged_connected:
+                    self._logged_connected = flag
+                    self.log(f"navien: device-list connected={flag!r} "
+                             f"({type(flag).__name__}) for {raw.get('deviceId')!r}")
                 # The one field in this response that is live rather than a capability
                 # descriptor, and the reason the device list is still read every cycle.
-                self._connected_registry = unit.connected_registry
+                # Skipped when a link event overtook this reply — see `superseded` above.
+                if apply_registry:
+                    self._connected_registry = unit.connected_registry
                 # Refresh the model code (control-topic addressing) from the live list,
                 # so a device paired before the model-code fix corrects itself.
                 if unit.model_code:
@@ -667,15 +740,21 @@ class AironeDevice_(device.Device):
                 await self._sync_humidity_range(unit.humidity_range())
                 wants_sensors = unit.wants_air_sensors()
                 break
-        # Only once we have actually seen a list — a failed read must not silently use up
-        # the one-shot, or Gate 0 Q4 gets no answer at all when the first poll fails.
-        if devices:
-            self._logged_connected = True
 
         if wants_sensors:
             try:
                 sensors = await self._api.air_sensor(self._device_seq, self._home_seq)
+                previous = dict(self._unit.air_sensors)
                 self._unit.apply_air_sensors(sensors)
+                # Deliberate instrumentation, and the thing it is instrumenting is not this
+                # device: `/air-sensor` is served by the cloud against the *AirOne's*
+                # device_seq, and the AirMonitor reads the same endpoint. Whether the
+                # monitor reports independently or through its parent is open (see
+                # airmonitor/device.py), and it is settled by comparing what these two
+                # lines say during an AirOne outage. Changed values only, so a working
+                # link is one short line and a frozen one is visibly "unchanged".
+                changed = air_sensor_changes(previous, self._unit.air_sensors)
+                self.log(f"navien: air-sensor {changed or 'unchanged'}")
             except Exception as exc:
                 self.log(f"air-sensor read failed: {exc}")
 

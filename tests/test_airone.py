@@ -143,6 +143,32 @@ def test_mqtt_extract_and_parse():
     assert nested[0] == "68FE" and nested[1]["roomController"]["mode"] == 9
 
 
+def test_mqtt_extract_connection_event():
+    """The envelope captured on hardware (2026-08-03), and everything it must not match."""
+    topic = "361954/airone/68FE710F2790043B"
+    down = {"topic": "event/rc/v2/1901/68FE710F2790043B/disconnected",
+            "payload": {}, "serviceCode": 300}
+    assert mqtt.extract_connection_event(topic, down) == ("68FE710F2790043B", False)
+    up = dict(down, topic="event/rc/v2/1901/68FE710F2790043B/connected")
+    assert mqtt.extract_connection_event(topic, up) == ("68FE710F2790043B", True)
+
+    # A state frame on the same account — it has its own parser and must not land here.
+    assert mqtt.extract_connection_event(
+        topic, {"topic": "dt/rc/v2/1901/68FE710F2790043B/status",
+                "payload": {"reported": {"roomController": {"running": 1}}}}) is None
+    # The other `connected` topic: `{home}/airone/connected/{physId}` with a literal `{}`
+    # body. It arrives on every subscribe, carries nothing, and its meaning is unknown, so
+    # it keeps falling through to the unmatched log rather than being read as an event.
+    assert mqtt.extract_connection_event(
+        "361954/airone/connected/68FE710F2790043B", {}) is None
+    # The id is in two places and they are cross-checked: a frame whose envelope names a
+    # different device than its topic is not something to act on.
+    assert mqtt.extract_connection_event(
+        topic, dict(down, topic="event/rc/v2/1901/OTHER-DEVICE/disconnected")) is None
+    assert mqtt.extract_connection_event(topic, {"payload": {}}) is None
+    assert mqtt.extract_connection_event(topic, {"topic": "connected"}) is None
+
+
 def test_sigv4_path_shape():
     creds = AwsCredentials("AKIA_TEST", "secret_test", "token/with+slash=")
     path = mqtt.build_signed_ws_path(creds, host="nskr-iot.naviensmartcontrol.com")

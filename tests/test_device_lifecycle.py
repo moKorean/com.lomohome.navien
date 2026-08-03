@@ -1435,3 +1435,343 @@ def test_mate_report_arriving_during_teardown_is_dropped(make_homey):
         assert dev._reports == 0
 
     asyncio.run(scenario())
+
+
+# Link events — the cloud says the appliance went away, minutes before the poll would
+#
+# Captured on hardware (2026-08-03) by unplugging and replugging the AirOne. The frames are
+# `{"topic": "event/rc/v2/1901/68FE710F2790043B/disconnected", "payload": {}, ...}` on the
+# device's own MQTT topic, and they carry no `reported` section, so every one of them used
+# to be dropped. Measured value: the `/connected` frame landed at 11:40:45 and the poll that
+# would have restored the tile was not due until ~11:45:09.
+
+
+class _Msg:
+    """A paho message as `_on_message` reads it: `.topic` and raw `.payload` bytes."""
+
+    def __init__(self, topic, payload, retain=False):
+        import json
+
+        self.topic = topic
+        self.payload = json.dumps(payload).encode()
+        self.retain = retain
+
+
+def test_link_event_frame_is_routed_and_the_unknown_topic_still_is_not():
+    """Routing, and the frame that must keep falling through.
+
+    A second topic was seen on the same account — `{home}/airone/connected/{physId}`, payload
+    literally `{}` — which arrives on every subscribe and whose semantics are unknown. It has
+    no envelope `topic`, so it is not a link event and belongs where it already was: the
+    unmatched log, which is what made the real event topic findable in the first place."""
+
+    async def scenario():
+        events, lines = [], []
+        m = _mqtt(asyncio.get_running_loop(),
+                  on_event=lambda device_id, connected: events.append((device_id, connected)))
+        m._log = lines.append
+
+        m._on_message(None, None, _Msg(
+            "361954/airone/68FE710F2790043B",
+            {"topic": "event/rc/v2/1901/68FE710F2790043B/disconnected",
+             "payload": {}, "serviceCode": 300}))
+        await asyncio.sleep(0)
+        assert events == [("68FE710F2790043B", False)]
+        assert lines == []
+
+        m._on_message(None, None, _Msg("361954/airone/connected/68FE710F2790043B", {}))
+        await asyncio.sleep(0)
+        assert events == [("68FE710F2790043B", False)]     # nothing new
+        assert any("unmatched frame" in line for line in lines)
+
+    asyncio.run(scenario())
+
+
+def test_link_event_marks_unavailable_without_a_poll(make_homey):
+    """The point of the whole change: the verdict lands on the tile when the event arrives,
+    not up to a poll interval later. No REST call is involved in reaching it."""
+
+    async def scenario():
+        api = FakeApi(devices=[_airone_raw(connected=True)])
+        dev = await _airone_at_rest(make_homey, api, _STATUS_CAPS)
+        dev._mqtt = FakeMqtt(connected=True)
+
+        dev._on_mqtt_event("RC-77", False)
+        await until(lambda: dev.available is False, "the event alone to grey the tile out")
+
+        assert dev._connected_registry is False
+        assert dev.unavailable_reason == "기기가 오프라인입니다"
+        assert api.calls.get("list_devices") is None      # no poll took part in this
+        assert api.calls.get("airone_command") is None    # and an absent unit is not probed
+
+    asyncio.run(scenario())
+
+
+def test_link_event_connected_re_asks_for_state(make_homey):
+    """The appliance has just come back and what it is doing is unknown — the same reason
+    `_after_connect` re-requests state after a resubscribe. Nothing else can fill the tile:
+    the reply is the only source of live state."""
+
+    async def scenario():
+        api = FakeApi()
+        dev = await _airone_at_rest(make_homey, api, _STATUS_CAPS)
+        dev._mqtt = FakeMqtt(connected=True)
+        dev._connected_registry = False
+        await dev._update_availability()
+        assert dev.available is False
+
+        dev._on_mqtt_event("RC-77", True)
+        await until(lambda: api.calls.get("airone_command", 0) >= 1,
+                    "the event to re-ask the appliance for its state")
+
+        assert dev._connected_registry is True
+        assert dev.available is True
+        assert api.calls.get("list_devices") is None
+
+    asyncio.run(scenario())
+
+
+def test_a_poll_corrects_a_wrong_link_event(make_homey):
+    """REST stays the authority. The event is the fast signal and the poll is the correcting
+    one, so a spurious or missed event costs one cycle at most — which is what allows the
+    device to act on a single frame at all."""
+
+    async def scenario():
+        api = FakeApi(devices=[_airone_raw(connected=True)])
+        dev = await _airone_at_rest(make_homey, api, _STATUS_CAPS)
+        dev._mqtt = FakeMqtt(connected=True)
+
+        dev._on_mqtt_event("RC-77", False)
+        await until(lambda: dev.available is False, "the event to grey the tile out")
+
+        await dev._poll_once()
+
+        assert dev._connected_registry is True
+        assert dev.available is True
+
+    asyncio.run(scenario())
+
+
+def test_a_failed_device_list_does_not_erase_a_link_event(make_homey):
+    """A failed read is not a statement about the appliance. The per-cycle reset to None
+    means "this list did not mention the device", so it has to happen only once a list has
+    actually arrived — otherwise an unreachable server silently un-does the one signal that
+    said something about the hardware."""
+
+    async def scenario():
+        api = FakeApi(devices=[_airone_raw(connected=True)])
+        dev = await _airone_at_rest(make_homey, api, _STATUS_CAPS)
+        dev._mqtt = FakeMqtt(connected=True)
+
+        dev._on_mqtt_event("RC-77", False)
+        await until(lambda: dev.available is False, "the event to grey the tile out")
+
+        api.fail["list_devices"] = NavienNetworkError("no route to host")
+        await dev._poll_once()
+
+        assert dev._connected_registry is False
+        assert dev.unavailable_reason == "기기가 오프라인입니다"
+
+    asyncio.run(scenario())
+
+
+def test_a_device_list_reading_that_predates_a_link_event_does_not_win(make_homey):
+    """The reply describes the world from *before* the event that overtook it.
+
+    Found in review. Guarding only the exception path left the stale-success path wide
+    open: the poll awaits `list_devices`, a `/disconnected` lands while it is in flight,
+    and then the reply — a snapshot the cloud took before the appliance dropped — resets
+    the registry and writes `connected=1` back over it. The tile returns to available for
+    a full cycle, which is exactly the wait acting on the event was meant to remove. The
+    `/connected` mirror is the more visible one: a device we *know* is back gets greyed
+    out again by a body that still said 0."""
+
+    async def scenario():
+        api = FakeApi(devices=[_airone_raw(connected=True)])
+        dev = await _airone_at_rest(make_homey, api, _STATUS_CAPS)
+        dev._mqtt = FakeMqtt(connected=True)
+
+        # Fire the event from inside the in-flight window, which is what makes the reply
+        # older than the verdict rather than newer.
+        released = asyncio.Event()
+
+        async def slow_list(_home_seq):
+            dev._on_mqtt_event("RC-77", False)
+            released.set()
+            return [_airone_raw(connected=True)]
+
+        api.list_devices = slow_list
+        await dev._poll_once()
+        assert released.is_set()
+
+        assert dev._connected_registry is False
+        await until(lambda: dev.available is False, "the event verdict to survive the poll")
+        assert any("predates a link event" in line for line in dev.logs)
+
+        # …and the *next* cycle, whose request went out after the event, corrects freely.
+        del api.list_devices                       # back to the real coroutine
+        api.devices = [_airone_raw(connected=True)]
+        await dev._poll_once()
+        assert dev._connected_registry is True
+
+    asyncio.run(scenario())
+
+
+def test_a_retained_link_event_is_ignored(make_homey):
+    """A retained frame is the broker replaying the last publish, not news about now.
+
+    Found in review, and it is the one genuinely new failure mode acting on these frames
+    opens. `_reconnect_loop` resubscribes on every blip, so a retained `/disconnected` left
+    on the topic by a power cut last week would grey out a working appliance after each
+    hiccup. Before this feature such a frame was inert — one log line."""
+
+    async def scenario():
+        events, lines = [], []
+        m = _mqtt(asyncio.get_running_loop(),
+                  on_event=lambda device_id, connected: events.append((device_id, connected)))
+        m._log = lines.append
+        frame = {"topic": "event/rc/v2/1901/68FE710F2790043B/disconnected",
+                 "payload": {}, "serviceCode": 300}
+
+        m._on_message(None, None, _Msg(
+            "361954/airone/68FE710F2790043B", frame, retain=True))
+        await asyncio.sleep(0)
+        assert events == []
+        assert any("ignoring retained link event" in line for line in lines)
+
+        # The same frame live is acted on — the retain bit is the only difference.
+        m._on_message(None, None, _Msg("361954/airone/68FE710F2790043B", frame))
+        await asyncio.sleep(0)
+        assert events == [("68FE710F2790043B", False)]
+
+    asyncio.run(scenario())
+
+
+def test_a_superseded_connect_event_does_not_ask_for_state(make_homey):
+    """`/connected` then `/disconnected` back to back: availability converges correctly
+    because `_update_availability` reads live state, but the status probe used to read the
+    captured argument and so POSTed a command to an appliance the same method had just
+    declared offline. Unbounded, too — one POST per flap against an undocumented API."""
+
+    async def scenario():
+        api = FakeApi()
+        dev = await _airone_at_rest(make_homey, api, _STATUS_CAPS)
+        dev._mqtt = FakeMqtt(connected=True)
+
+        dev._on_mqtt_event("RC-77", True)
+        dev._on_mqtt_event("RC-77", False)
+        await until(lambda: dev.available is False, "the later verdict to win")
+
+        assert dev._connected_registry is False
+        assert api.calls.get("airone_command", 0) == 0
+
+    asyncio.run(scenario())
+
+
+def test_link_event_for_another_device_is_ignored(make_homey):
+    """One MQTT client per device, but the subscription is a whole-home wildcard, so a
+    sibling's event arrives here too. The physical id is cross-checked in the parser (topic
+    against envelope) and again here against this device's own ids."""
+
+    async def scenario():
+        api = FakeApi()
+        dev = await _airone_at_rest(make_homey, api, _STATUS_CAPS)
+        dev._mqtt = FakeMqtt(connected=True)
+
+        dev._on_mqtt_event("SOMEONE-ELSE", False)
+        await asyncio.sleep(0)
+
+        assert dev._connected_registry is None
+        assert dev.availability == []
+        assert any("link event device_id='SOMEONE-ELSE' matched=False" in line
+                   for line in dev.logs)
+
+    asyncio.run(scenario())
+
+
+# Instrumentation
+
+
+def test_device_list_connected_is_logged_on_every_change(make_homey):
+    """It used to be one-shot per boot, and that is why the 1 -> 0 transition during the
+    hardware test left no trace: the flag had been spent on the first cycle's 1. A change is
+    the only thing worth a line — an unchanged value 288 times a day is not."""
+
+    async def scenario():
+        api = FakeApi(devices=[_airone_raw(connected=True)])
+        dev = await _airone_at_rest(make_homey, api, _STATUS_CAPS)
+        dev._mqtt = FakeMqtt(connected=True)
+
+        await dev._poll_once()
+        await dev._poll_once()                       # unchanged — no second line
+        api.devices = [_airone_raw(connected=False)]
+        await dev._poll_once()
+
+        lines = [line for line in dev.logs if "device-list connected=" in line]
+        assert len(lines) == 2
+        assert "connected=True" in lines[0]
+        assert "connected=False" in lines[1]
+
+    asyncio.run(scenario())
+
+
+def test_airone_logs_air_sensor_values_once_per_poll(make_homey):
+    """Deliberate instrumentation for the open AirMonitor question (see
+    `airmonitor/device.py`): changed values only, so a live feed is one short line and a
+    frozen one reads as "unchanged" repeating."""
+
+    async def scenario():
+        api = FakeApi(devices=[_airone_raw()],
+                      sensors=[{"airs": [{"type": "pm2Dot5", "value": 12, "level": 1}]}])
+        dev = await _airone_at_rest(make_homey, api, ["onoff"])
+
+        await dev._poll_once()
+        await dev._poll_once()
+
+        lines = [line for line in dev.logs if line.startswith("navien: air-sensor")]
+        assert lines == ["navien: air-sensor pm25=12", "navien: air-sensor unchanged"]
+
+    asyncio.run(scenario())
+
+
+def test_airmonitor_logs_air_sensor_values_once_per_poll(make_homey):
+    """The same line off the same endpoint, which is what makes the two comparable — and
+    comparing them is how the "does the monitor report through its parent?" question gets
+    settled."""
+
+    async def scenario():
+        api = FakeApi(sensors=[{"zoneId": "2",
+                                "airs": [{"type": "pm2Dot5", "value": 12, "level": 1}]}])
+        dev = airmonitor_device.AirMonitorDevice_(
+            homey=make_homey(api=api), store=_MONITOR_STORE,
+            capabilities=["measure_pm25"], name="거실 에어모니터")
+        await dev.on_init()
+        await stop(dev)                      # park the loop; drive the call directly
+        dev._api = api
+
+        await dev._poll_once()
+        await dev._poll_once()
+
+        lines = [line for line in dev.logs if line.startswith("navien: air-sensor")]
+        assert lines == ["navien: air-sensor pm25=12", "navien: air-sensor unchanged"]
+
+    asyncio.run(scenario())
+
+
+def test_the_airone_hands_the_event_callback_to_its_client(make_homey, monkeypatch):
+    """The parser and the handler are each covered above, and neither is reachable if the
+    client is never given the callback — an omission there would leave every other test in
+    this section green while no event ever arrived."""
+    monkeypatch.setattr(NavienMqtt, "connect_blocking", lambda self: None)
+    monkeypatch.setattr(NavienMqtt, "close", lambda self: None)
+
+    async def scenario():
+        api = FakeApi(aws=AwsCredentials("key", "secret", "token"))
+        dev = await _airone_at_rest(make_homey, api, ["onoff"])
+
+        await dev._start_mqtt()
+
+        assert dev._mqtt._on_event == dev._on_mqtt_event
+        await dev._teardown()
+
+    asyncio.run(scenario())

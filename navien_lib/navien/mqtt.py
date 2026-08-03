@@ -91,6 +91,54 @@ def extract_airone_reported(topic: str, payload: dict):
     return device_id, reported
 
 
+# The two envelope `topic` suffixes that state a link verdict, and what each one means.
+_EVENT_STATES = {"connected": True, "disconnected": False}
+
+
+def extract_connection_event(topic: str, payload: dict):
+    """`(physical_device_id, connected)` from a link event, or None if it isn't one.
+
+    Captured on real hardware (2026-08-03) by unplugging and replugging the AirOne. The
+    MQTT topic is `{home_seq}/airone/{physical_device_id}` and the payload is::
+
+        {"topic": "event/rc/v2/1901/68FE710F2790043B/disconnected",
+         "payload": {}, "serviceCode": 300}
+
+    with the same envelope and a `/connected` suffix when power came back. There is no
+    `reported` section, so `extract_airone_reported` drops these frames and every one of
+    them used to land in the unmatched-frame log.
+
+    WHY this parses the envelope only, and nothing about what the device *is*: the verdict
+    it carries is about the link, so the device layer can act on it without this function
+    knowing anything about AirOne state. That is also why it lives next to the SigV4 helper
+    rather than in `airone.py`.
+
+    The physical id is in two places — the MQTT topic's last segment and the second-to-last
+    segment of the envelope's own `topic` — and they are cross-checked rather than one being
+    trusted. A disagreement means this is some other frame whose shape happens to end in the
+    same word, and the caller ignores it exactly as it ignores anything else it cannot read.
+
+    NOT to be confused with `{home_seq}/airone/connected/{physical_device_id}`, a different
+    topic seen on the same account whose payload is literally `{}`. It arrives on every
+    subscribe (it looks retained), carries no data at all, and its semantics are unknown —
+    it has no envelope `topic` key, so it returns None here and keeps falling through to the
+    unmatched log, which is where an unexplained frame belongs.
+    """
+    inner_topic = (payload or {}).get("topic")
+    if not isinstance(inner_topic, str):
+        return None
+    parts = inner_topic.strip("/").split("/")
+    if len(parts) < 2:
+        return None
+    connected = _EVENT_STATES.get(parts[-1])
+    if connected is None:
+        return None
+    device_id = parts[-2]
+    if not device_id or device_id != topic.rsplit("/", 1)[-1]:
+        return None
+    return device_id, connected
+
+
 class NavienMqtt:
     """Subscribe-only AWS IoT client that pushes AirOne reports to a callback.
 
@@ -103,11 +151,19 @@ class NavienMqtt:
     exist so the device layer can rebuild the link on the event instead of on the next poll
     tick — paho's own reconnect retries the one presigned path it was given, and that path
     carries an STS token nothing can refresh from inside paho.
+
+    `on_event(device_id, connected)` reports the *appliance's* link rather than ours, and it
+    is optional in both halves for the same reason `parser` is injectable: a client handed
+    no callback runs no event parsing and behaves exactly as it did before. That is
+    deliberate — the frames were only ever observed on this account's AirOne topic, so the
+    mat's client, which is not paired and cannot be tested against, keeps dropping anything
+    it does not recognise rather than acting on a shape nobody has seen it send.
     """
 
     def __init__(self, *, loop, user_seq, home_seq_provider, creds_provider, on_reported,
                  prefixes=("airone",), parser=extract_airone_reported, log=print,
-                 on_connected=None, on_disconnected=None):
+                 on_connected=None, on_disconnected=None, on_event=None,
+                 event_parser=extract_connection_event):
         self._loop = loop
         self._user_seq = user_seq
         self._home_seq_provider = home_seq_provider
@@ -115,8 +171,10 @@ class NavienMqtt:
         self._on_reported = on_reported
         self._on_connected = on_connected
         self._on_disconnected = on_disconnected
+        self._on_event = on_event
         self._prefixes = tuple(prefixes)
         self._parser = parser
+        self._event_parser = event_parser
         self._log = log
         self._client = None
         self._client_id = ""
@@ -266,11 +324,38 @@ class NavienMqtt:
             return
         parsed = self._parser(message.topic, payload)
         if parsed is None:
+            # A link event carries no `reported` section by design, so it can only be
+            # recognised after the state parser has passed on the frame. Only attempted
+            # when someone asked for these events; without a callback this is the same
+            # code path it always was.
+            if self._on_event is not None:
+                event = self._event_parser(message.topic, payload)
+                if event is not None:
+                    # A retained frame is the broker replaying the last thing published on
+                    # this topic, not news about now — and `_reconnect_loop` resubscribes on
+                    # every blip, so acting on one would re-apply a week-old `/disconnected`
+                    # and grey out a working appliance after each hiccup. Dropping it costs
+                    # nothing: the boot verdict already comes from REST `connected`, which is
+                    # read on the first poll. Logged rather than silently skipped, because
+                    # whether these frames are retained at all is not yet known — the sibling
+                    # `.../connected/{id}` topic looks retained and this one may or may not be.
+                    if getattr(message, "retain", False):
+                        self._log(f"navien mqtt: ignoring retained link event {message.topic}")
+                        return
+                    device_id, connected = event
+                    self._loop.call_soon_threadsafe(self._on_event, device_id, connected)
+                    return
             # I4. A frame that carries no known reported section is dropped here in
             # silence today, which is indistinguishable from no frame arriving at all —
             # the failure mode an empty tile has to be traced through.
+            # The payload goes in truncated. Knowing *that* a frame was dropped only
+            # tells you something is missing; knowing its shape is what lets the next
+            # topic be parsed instead of guessed at — the `connected` topic was found
+            # exactly this way.
+            body = json.dumps(payload, ensure_ascii=False)
             self._log(f"navien mqtt: unmatched frame {message.topic} device_id=None "
-                      f"matched=False (no reported section)")
+                      f"matched=False (no reported section, no link event) "
+                      f"payload={body[:400]}")
             return
         device_id, reported = parsed
         # Hop off the paho thread before touching Homey/asyncio state.
