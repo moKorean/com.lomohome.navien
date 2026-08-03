@@ -2,7 +2,7 @@
   "type": "number",
   "title": {
     "en": "Air quality",
-    "ko": "종합 공기질"
+    "ko": "통합공기질"
   },
   "getable": true,
   "setable": false,

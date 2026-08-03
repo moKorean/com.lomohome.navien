@@ -2,7 +2,7 @@
   "type": "number",
   "title": {
     "en": "Desired humidity",
-    "ko": "희망 습도"
+    "ko": "희망습도"
   },
   "getable": true,
   "setable": true,

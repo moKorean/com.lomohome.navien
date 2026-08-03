@@ -1,6 +1,9 @@
 {
   "type": "string",
-  "title": { "en": "State", "ko": "운전 상태" },
+  "title": {
+    "en": "State",
+    "ko": "운전상태"
+  },
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",

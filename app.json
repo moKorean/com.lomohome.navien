@@ -160,11 +160,11 @@
       {
         "title": {
           "en": "Operating mode !{{is|is not}}",
-          "ko": "운전 모드가 !{{인가|아닌가}}"
+          "ko": "운전모드가 !{{인가|아닌가}}"
         },
         "titleFormatted": {
           "en": "Operating mode !{{is|is not}} [[mode]]",
-          "ko": "운전 모드가 [[mode]]!{{인가|아닌가}}"
+          "ko": "운전모드가 [[mode]]!{{인가|아닌가}}"
         },
         "args": [
           {
@@ -353,11 +353,11 @@
       {
         "title": {
           "en": "Set desired humidity",
-          "ko": "희망 습도 설정"
+          "ko": "희망습도 설정"
         },
         "titleFormatted": {
           "en": "Set desired humidity to [[humidity]]%",
-          "ko": "희망 습도를 [[humidity]]%로 설정"
+          "ko": "희망습도를 [[humidity]]%로 설정"
         },
         "args": [
           {
@@ -381,11 +381,11 @@
       {
         "title": {
           "en": "Set operating mode",
-          "ko": "운전 모드 설정"
+          "ko": "운전모드 설정"
         },
         "titleFormatted": {
           "en": "Set operating mode to [[mode]]",
-          "ko": "운전 모드를 [[mode]](으)로 설정"
+          "ko": "운전모드를 [[mode]](으)로 설정"
         },
         "args": [
           {
@@ -847,7 +847,7 @@
       "type": "number",
       "title": {
         "en": "Air quality",
-        "ko": "종합 공기질"
+        "ko": "통합공기질"
       },
       "getable": true,
       "setable": false,
@@ -908,7 +908,7 @@
       "type": "enum",
       "title": {
         "en": "Operating mode",
-        "ko": "운전 모드"
+        "ko": "운전모드"
       },
       "getable": true,
       "setable": true,
@@ -1126,7 +1126,7 @@
       "type": "string",
       "title": {
         "en": "State",
-        "ko": "운전 상태"
+        "ko": "운전상태"
       },
       "getable": true,
       "setable": false,
@@ -1164,7 +1164,7 @@
       "type": "number",
       "title": {
         "en": "Desired humidity",
-        "ko": "희망 습도"
+        "ko": "희망습도"
       },
       "getable": true,
       "setable": true,

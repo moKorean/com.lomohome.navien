@@ -1,8 +1,8 @@
 {
-  "title": { "en": "Set operating mode", "ko": "운전 모드 설정" },
+  "title": { "en": "Set operating mode", "ko": "운전모드 설정" },
   "titleFormatted": {
     "en": "Set operating mode to [[mode]]",
-    "ko": "운전 모드를 [[mode]](으)로 설정"
+    "ko": "운전모드를 [[mode]](으)로 설정"
   },
   "args": [
     {

@@ -1,8 +1,8 @@
 {
-  "title": { "en": "Operating mode !{{is|is not}}", "ko": "운전 모드가 !{{인가|아닌가}}" },
+  "title": { "en": "Operating mode !{{is|is not}}", "ko": "운전모드가 !{{인가|아닌가}}" },
   "titleFormatted": {
     "en": "Operating mode !{{is|is not}} [[mode]]",
-    "ko": "운전 모드가 [[mode]]!{{인가|아닌가}}"
+    "ko": "운전모드가 [[mode]]!{{인가|아닌가}}"
   },
   "args": [
     {

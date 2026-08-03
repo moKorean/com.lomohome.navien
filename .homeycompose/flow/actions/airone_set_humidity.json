@@ -1,8 +1,8 @@
 {
-  "title": { "en": "Set desired humidity", "ko": "희망 습도 설정" },
+  "title": { "en": "Set desired humidity", "ko": "희망습도 설정" },
   "titleFormatted": {
     "en": "Set desired humidity to [[humidity]]%",
-    "ko": "희망 습도를 [[humidity]]%로 설정"
+    "ko": "희망습도를 [[humidity]]%로 설정"
   },
   "args": [
     {
