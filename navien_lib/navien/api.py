@@ -43,6 +43,10 @@ from navien_lib.const import (
 )
 from navien_lib.navien import tls
 
+# How long an air-sensor reading is reused, so an AirOne and its AirMonitor (which poll
+# the same endpoint each cycle) don't each hit the server. Well under the poll interval.
+AIR_SENSOR_CACHE_S = 60
+
 
 class NavienAuthError(Exception):
     """Login failed for a reason retrying will not fix (bad password, etc.)."""
@@ -82,6 +86,7 @@ class NavienApi:
     homes: list = field(default_factory=list)
     aws: AwsCredentials | None = None
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    _air_cache: dict = field(default_factory=dict)   # device_seq -> (fetched_at, sensorList)
 
     # --- public API --------------------------------------------------------
 
@@ -172,11 +177,22 @@ class NavienApi:
 
     async def air_sensor(self, device_seq, home_seq) -> list:
         """Air-quality readings. These come from REST only — MQTT carries the sensor
-        kinds but not their values."""
+        kinds but not their values.
+
+        Cached briefly: an AirOne and its AirMonitor both poll the *same* endpoint each
+        cycle, so without this the account makes two identical requests. The TTL is well
+        under the poll interval, so each cycle still gets fresh data.
+        """
+        key = str(device_seq)
+        hit = self._air_cache.get(key)
+        if hit is not None and (time.time() - hit[0]) < AIR_SENSOR_CACHE_S:
+            return hit[1]
         data = await self._authed(
             "GET", f"/devices/{device_seq}/air-sensor?{self._q(home_seq)}"
         )
-        return (data or {}).get("sensorList") or []
+        sensor_list = (data or {}).get("sensorList") or []
+        self._air_cache[key] = (time.time(), sensor_list)
+        return sensor_list
 
     # --- request plumbing --------------------------------------------------
 
