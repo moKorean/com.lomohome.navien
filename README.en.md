@@ -43,6 +43,12 @@ The Homey port itself is © 2026 Geunwon Mo.
 - **Shared account login** — all devices on the account share one session (Navien allows
   only one per account); sign in once from the app settings. Password-change repair is
   supported.
+- **No invented state** — live state arrives over MQTT only (the device-list REST response
+  is a capability document, not live values). So rather than filling the gap with a guess:
+  when the cloud reports the appliance offline the tile goes **unavailable** (about a minute
+  after power is cut), a lost server connection says so, and a merely lagging realtime feed
+  **stays controllable** with `최신 아님` ("stale") appended to the operating info. A dropped
+  realtime link reconnects within seconds instead of waiting for the next poll.
 
 ## Support
 
