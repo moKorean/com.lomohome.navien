@@ -58,5 +58,9 @@
   "0.6.1": {
     "en": "The app is now simply called Navien Smart. It is still an unofficial community app — the store shows that with its own badge, so the word no longer has to sit in the name. The store description also notes that boilers and wall pads are not covered, so you know where to look for those. Your devices, settings and automations are unaffected.",
     "ko": "앱 이름을 '나비엔 스마트'로 정리했습니다. 여전히 비공식 커뮤니티 앱이며, 스토어가 배지로 이를 표시해 주기 때문에 이름에까지 넣지 않았습니다. 보일러와 월패드는 지원 범위가 아니라는 안내도 소개글에 넣어, 그 기기는 어디서 찾아야 하는지 알 수 있게 했습니다. 기기·설정·자동화는 그대로입니다."
+  },
+  "0.6.2": {
+    "en": "Sleep mat fixes. Some mats never got a power switch at all — now every mat has one, including mats you already added. On a temperature mat, turning one side off used to do nothing at all; it now actually turns off, and a side you switched off from the phone app is shown properly instead of being stuck at the lowest temperature. Trying to stop the only side still running now tells you the mat blocks that, and to use the power switch instead. Nothing changes for level-based (carbon) mats or for the AirOne.",
+    "ko": "숙면매트 수정입니다. 전원 스위치가 아예 생기지 않던 매트가 있었는데, 이제 모든 매트에 생깁니다 — 이미 추가해 두신 매트도 포함입니다. 온도형 매트에서 한쪽을 끄면 아무 일도 일어나지 않았지만 이제 실제로 꺼지고, 휴대폰 앱에서 끄신 쪽도 최저 온도에 걸려 있지 않고 제대로 표시됩니다. 마지막으로 운전 중인 한쪽을 끄려고 하면, 기기가 막는 동작이라는 것과 전원 스위치를 쓰시면 된다는 것을 안내합니다. 단계형(카본) 매트와 에어원은 달라지는 것이 없습니다."
   }
 }

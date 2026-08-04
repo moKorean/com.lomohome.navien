@@ -36,7 +36,10 @@ The Homey port itself is © 2026 Geunwon Mo.
   "good / bad" grade label. Every reading is parsed as a number, so it graphs in Insights.
 - **AirMonitor** — paired as its own sensor device.
 - **Sleep mats** — power, per-zone temperature (0.5 °C) and heat level, single/double,
-  seasonal heating/cooling, running/error state and over-temperature warning.
+  seasonal heating/cooling, running/error state and over-temperature warning. Zones can be
+  stopped individually (one step below the minimum *is* "off" on this hardware), and the
+  last running zone — which the appliance itself refuses to stop — says why and points at
+  the power switch.
 - **Flow** — automate both appliances: AirOne operating mode / fan speed / power /
   desired humidity, and sleep-mat power / season / per-zone temperature and heat level,
   as actions, with matching condition cards.
