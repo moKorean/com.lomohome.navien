@@ -4,6 +4,8 @@
 공식 나비엔 스마트 앱이 쓰는 서버를 그대로 사용합니다 — 제어는 REST, 실시간 상태는 AWS IoT
 MQTT. 나비엔 **공식 앱이 아닌, 커뮤니티가 만든 비공식 앱입니다.**
 
+**설치:** [Homey 앱스토어](https://homey.app/a/com.lomohome.navien)
+
 > English README: [`README.en.md`](./README.en.md)
 
 ## 출처 · 라이선스
@@ -58,7 +60,7 @@ Homey 포팅 자체는 © 2026 Geunwon Mo.
 
 ## 설정
 
-1. Homey에 앱을 설치합니다.
+1. [Homey 앱스토어](https://homey.app/a/com.lomohome.navien)에서 앱을 설치합니다.
 2. **앱 설정**을 열고 **나비엔 스마트** 계정 아이디/비밀번호로 로그인합니다.
    (참고: 나비엔은 계정당 세션 1개만 허용해서, 휴대폰 앱을 열면 앱이 잠깐 로그아웃될 수
    있습니다 — 자동으로 다시 로그인합니다.)

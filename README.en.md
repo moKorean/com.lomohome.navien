@@ -5,6 +5,8 @@ air-purify) and **Navien sleep mats**. It talks to the same Navien Smart cloud t
 official app uses — REST for control, AWS IoT MQTT for realtime state. This is an
 **unofficial, community-built app and is not affiliated with Navien.**
 
+**Install:** [Homey App Store](https://homey.app/a/com.lomohome.navien)
+
 > 한국어 README는 [`README.md`](./README.md)를 참고하세요.
 
 ## Credits · License
@@ -66,7 +68,7 @@ The Homey port itself is © 2026 Geunwon Mo.
 
 ## Setup
 
-1. Install the app on your Homey.
+1. Install the app from the [Homey App Store](https://homey.app/a/com.lomohome.navien).
 2. Open the **app settings** and sign in with your **Navien Smart** account.
    (Note: Navien allows only one session per account, so opening the phone app may briefly
    log the app out — it re-logs-in automatically.)
