@@ -214,6 +214,7 @@ class Device(_Strict):
         self._capabilities = list(capabilities)
         self._name = name
         self._values = dict(capability_values or {})
+        self.added_capabilities = []    # in call order, for the powerCtrl migration
 
     # --- sync ---------------------------------------------------------------
 
@@ -258,6 +259,19 @@ class Device(_Strict):
         if capability not in self._capabilities:
             raise ValueError(f"device has no capability {capability!r}")
         self.capability_options[capability] = dict(options)
+
+    async def add_capability(self, capability) -> None:
+        """Present only when a test opts in, because we could not confirm it is real.
+
+        SDK3's JS Device has `addCapability`, but the Python runtime's documented Device API
+        does not list an equivalent, and there is no local stub to check against. The app
+        therefore probes with `getattr` and logs either way, and this fake is deleted from
+        instances that want the absent branch (`no_add_capability`) so both halves of that
+        probe are covered rather than assumed.
+        """
+        if capability not in self._capabilities:
+            self._capabilities.append(capability)
+        self.added_capabilities.append(capability)
 
 
 class App(_Strict):

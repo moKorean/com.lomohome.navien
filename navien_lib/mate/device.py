@@ -8,11 +8,12 @@ nothing is applied optimistically. Four-season temperature ranges follow the act
 """
 
 import asyncio
+import inspect
 import random
 
 from homey import device
 
-from navien_lib import compat
+from navien_lib import compat, i18n
 from navien_lib.const import (
     INITIAL_STATE_TIMEOUT_S,
     MQTT_BACKOFF_S,
@@ -26,7 +27,7 @@ from navien_lib.const import (
     STORE_MODEL_CODE,
     ZONE_SINGLE,
 )
-from navien_lib.navien.mate import MateDevice, extract_mate_reported
+from navien_lib.navien.mate import MateDevice, MateZoneOffRefused, extract_mate_reported
 from navien_lib.navien.mqtt import NavienMqtt
 
 
@@ -83,6 +84,9 @@ class MateDevice_(device.Device):
         # without a staleness marker there is nothing to measure an *age* against.
         self._reports = 0
 
+        # Before the listener loop, so a capability added here gets its listener too.
+        await self._migrate_power_capability()
+
         for cap in self.get_capabilities():
             base, zone = _split(cap)
             listener = None
@@ -103,6 +107,32 @@ class MateDevice_(device.Device):
 
     async def on_uninit(self) -> None:
         await self._teardown()
+
+    async def _migrate_power_capability(self) -> None:
+        """Give an already-paired mat the power switch the `powerCtrl` gate withheld.
+
+        Capabilities are fixed at pairing (`mate/driver.py`), so dropping the gate only
+        helps new pairings — a mat paired while it was in place keeps a tile with no power
+        control. `add_capability` is not in the Python runtime's documented Device API, so
+        this probes for it and reports what happened either way: a migration that fails
+        silently is worse than one that never ran, because nothing would say so.
+        """
+        if "onoff" in self.get_capabilities():
+            return
+        add = getattr(self, "add_capability", None)
+        if add is None:
+            self.log("navien: no add_capability on this firmware; re-pair the mat to get "
+                     "the power switch")
+            return
+        try:
+            result = add("onoff")
+            if inspect.isawaitable(result):
+                await result
+        except Exception as exc:
+            self.log(f"navien: adding the onoff capability failed: {exc}; re-pair the mat "
+                     "to get the power switch")
+            return
+        self.log("navien: added the onoff capability (powerCtrl gate removed)")
 
     async def _teardown(self) -> None:
         """Cancel every task this device owns, wait for them, then close MQTT (M5).
@@ -536,12 +566,12 @@ class MateDevice_(device.Device):
 
     def _make_temp(self, zone):
         async def listener(value, opts=None):
-            await self._mate(self._mat.desired_temperature(zone, value))
+            await self._mate_zone(lambda m: m.desired_temperature(zone, value))
         return listener
 
     def _make_level(self, zone):
         async def listener(value, opts=None):
-            await self._mate(self._mat.desired_level(zone, value))
+            await self._mate_zone(lambda m: m.desired_level(zone, value))
         return listener
 
     async def _on_set_season(self, value, opts=None):
@@ -568,20 +598,38 @@ class MateDevice_(device.Device):
         if not (hc and hc.is_celsius):
             raise Exception("온도(℃)로 조절하는 매트가 아닙니다.")
         self._require_zone(zone)
-        await self._mate(self._mat.desired_temperature(zone, value))
+        await self._mate_zone(lambda m: m.desired_temperature(zone, value))
 
     async def flow_set_level(self, zone: str, value) -> None:
         hc = self._mat.heat_control if self._mat else None
         if not (hc and hc.is_level):
             raise Exception("단계로 조절하는 매트가 아닙니다.")
         self._require_zone(zone)
-        await self._mate(self._mat.desired_level(zone, value))
+        await self._mate_zone(lambda m: m.desired_level(zone, value))
 
     def flow_is_on(self) -> bool:
         return bool(self._mat and self._mat.is_on)
 
     def flow_season(self):
         return None if self._mat is None else self._mat.season
+
+    async def _mate_zone(self, build):
+        """Send a per-zone desired, turning a refusal into wording the user can act on.
+
+        The pure layer raises `MateZoneOffRefused` without text so the message can be shown
+        in the user's own language. Raising from the listener is what puts it on screen as a
+        toast and reverts the control, the same way the AirOne explains a setting that does
+        not apply to the current mode.
+        """
+        if self._mat is None:
+            raise Exception("기기 정보를 아직 불러오지 못했습니다.")
+        try:
+            desired = build(self._mat)
+        except MateZoneOffRefused:
+            raise Exception(
+                i18n.translate("error.zone_off_last", self._language)
+            ) from None
+        await self._mate(desired)
 
     async def _mate(self, desired):
         if self._mat is None:

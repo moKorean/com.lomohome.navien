@@ -3,7 +3,8 @@
     "no_credentials": "No Navien account is set up. Open the app settings and sign in.",
     "login_failed": "Sign-in failed. Check your Navien account ID and password.",
     "no_home": "No home is registered on this account.",
-    "command_failed": "The appliance did not accept the command."
+    "command_failed": "The appliance did not accept the command.",
+    "zone_off_last": "The other side is already stopped. To stop heating, switch the mat off."
   },
   "stale": "stale",
   "stale_alone": "no status yet"

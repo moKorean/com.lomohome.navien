@@ -44,6 +44,14 @@ def _dig(d, *path, default=None):
     return default if node is None else node
 
 
+class MateZoneOffRefused(ValueError):
+    """Stopping this zone would leave none running, which the appliance refuses.
+
+    Carries no text: the device layer owns the wording so it can be shown in the user's
+    own language (`locales/*.json`, key `error.zone_off_last`).
+    """
+
+
 @dataclass
 class HeatControl:
     unit: str | None
@@ -83,6 +91,25 @@ class HeatControl:
     @property
     def step(self) -> float:
         return 0.5 if self.is_celsius else 1.0
+
+    @property
+    def off_value(self) -> float | None:
+        """The value that turns one zone off: **one step below `rangeMin`.**
+
+        From the app (`MateWifiModelControlViewModel.setTemperature`): a value under
+        `rangeMin` is sent as `rangeMin - controlUnit`, not as 0. The 0 is a screen-only
+        stand-in for "off".
+
+            level 1.0 (1..8)      1 - 1.0  = 0
+            celsius 0.5 (28..50)  28 - 0.5 = 27.5
+
+        This is why the level axis was right by accident: `desired_level(0)` was already
+        sending `rangeMin - step`. Only the celsius axis missed the calculation, and there
+        `enable: false` alone is ignored by the appliance (navien_smart_ha issue #16).
+        """
+        if self.range_min is None or not self.is_known:
+            return None
+        return self.range_min - self.step
 
 
 @dataclass
@@ -270,9 +297,34 @@ class MateDevice:
     def zone_enabled(self, zone):
         return self._mirror(zone, self._enabled_raw)
 
+    def zone_is_off(self, zone) -> bool | None:
+        """Is this zone off? **`None` when unknown** — never guessed as off.
+
+        Read from the value rather than from `enable`, because the value is what the
+        appliance acts on: a zone parked at `off_value` is off whatever `enable` says.
+        """
+        control = self.active_control
+        off = control.off_value if control else None
+        setting = self.zone_setting(zone)
+        if off is None or setting is None:
+            return None
+        return float(setting) <= off
+
     # --- control payloads --------------------------------------------------
 
     def desired_power(self, on: bool) -> dict:
+        """Power the appliance on or off. Zone values are left alone.
+
+        **Backlog (unverified).** Upstream also raises any zone sitting at `off_value` up to
+        `rangeMin` when powering on, having observed that otherwise the appliance powers up
+        with every zone still off (navien_smart_ha issue #16, reporter 7). We do not, for
+        two reasons: this app never *writes* `off_value` except when explicitly asked to
+        stop a zone, and nobody here owns a mat to measure it on. The phone app can still
+        leave a mat in that state, so the case is real — it just is not confirmed, and
+        raising a zone the user did not ask about is the kind of guess worth measuring
+        first. Settle it by parking one zone at `off_value`, powering off, powering on, and
+        watching whether that zone heats.
+        """
         return {"operationMode": 1 if on else 0}
 
     def build_heater_desired(self, changes: dict, enables=None, control=None) -> dict:
@@ -303,17 +355,58 @@ class MateDevice:
         return {"heater": heater}
 
     def desired_temperature(self, zone, value) -> dict:
-        d = self.build_heater_desired({zone: float(value)}, enables={zone: True})
+        value = float(value)
+        off = self._off_value()
+        if off is not None and value <= off:
+            return self.desired_zone_off(zone)
+        d = self.build_heater_desired({zone: value}, enables={zone: True})
         d["operationMode"] = 1
         return d
 
     def desired_level(self, zone, value) -> dict:
         value = int(value)
-        return self.build_heater_desired({zone: value}, enables={zone: value > 0})
+        off = self._off_value()
+        if off is None:
+            return self.build_heater_desired({zone: value}, enables={zone: value > 0})
+        if value <= off:
+            return self.desired_zone_off(zone)
+        return self.build_heater_desired({zone: value}, enables={zone: True})
+
+    def _off_value(self):
+        control = self.active_control
+        return control.off_value if control else None
 
     def desired_zone_off(self, zone) -> dict:
-        current = self.zone_setting(zone) or 0
-        return self.build_heater_desired({zone: current}, enables={zone: False})
+        """Turn one zone off by parking it at `off_value`.
+
+        The old version re-sent the zone's *current* value with `enable: false`, which the
+        appliance ignores on the celsius axis — three sends, three no-ops on an EME-520
+        (navien_smart_ha issue #16). The value is what does the work, not the flag.
+
+        **The last running zone cannot be turned off.** The appliance refuses it; upstream
+        measured a double mat parked at `0, 1` after the command. We refuse first and say
+        why rather than sending something that does nothing.
+
+        **We do not turn the appliance off on the user's behalf.** They asked to stop one
+        zone; cutting power is a different, larger action, and the phone app does not do it
+        either — it shows the same guidance and leaves power alone.
+
+        Unlike upstream, a **single-zone** mat is not refused: its `zones` has no other
+        member, so `stays_on` there would always be false, and refusing would remove the
+        only way that mat has ever had to stop heating. The evidence for the refusal comes
+        from a dual-control mat, and the app's own guard (`if (heatType != 2 && heatType
+        != 1) return true`) reads as dual-only, so extending it to single-zone would be
+        inference, not the observation.
+        """
+        off = self._off_value()
+        if off is None:
+            raise ValueError("cannot compute this mat's off value (no rangeMin/unit)")
+        others = [z for z in self.zones if z != zone]
+        if others and not any(self.zone_is_off(z) is not True for z in others):
+            # Unknown (`None`) counts as running: sending and letting the appliance decide
+            # beats locking the user out on a guess.
+            raise MateZoneOffRefused(zone)
+        return self.build_heater_desired({zone: off}, enables={zone: False})
 
     def desired_season(self, season) -> dict:
         season = int(season)
@@ -332,8 +425,13 @@ class MateDevice:
 
     def homey_capabilities(self) -> list:
         caps = []
-        if self.has_power_ctrl:
-            caps.append("onoff")
+        # **Always.** `functions.powerCtrl` used to gate this, and that rule had nothing
+        # behind it: the phone app never reads the field (0 call sites in APK 2.10.4) and
+        # an EME-520 reports `powerCtrl: false` while accepting every `operationMode`
+        # command sent to it (navien_smart_ha issue #16). Gating left those owners with no
+        # power control on the tile at all. `has_power_ctrl` is kept for diagnostics so we
+        # can still see what the server claims.
+        caps.append("onoff")
         caps.append("navien_operation_mode")
         hc = self.heat_control
         for zone in self.zones:
@@ -359,9 +457,16 @@ class MateDevice:
             sfx = self._suffix(zone)
             title = self._zone_title(zone)
             if hc and hc.is_celsius:
+                # The floor is `off_value`, not `rangeMin`. One step below the minimum is
+                # how this appliance expresses "this zone is off" (see `off_value`), so a
+                # picker that stops at `rangeMin` cannot turn a zone off and cannot even
+                # display one the phone app turned off — 27.5 would be out of range.
+                floor = active.off_value if active else None
+                if floor is None:
+                    floor = active.range_min if active else None
                 opts[f"target_temperature{sfx}"] = {
                     "title": title,
-                    "min": (active.range_min if active else None) or 20,
+                    "min": 20 if floor is None else floor,
                     "max": (active.range_max if active else None) or 45,
                     "step": 0.5,
                 }

@@ -90,6 +90,138 @@ def test_mate_mqtt_parse():
     assert mate.extract_mate_reported("t", {"topic": "x/update/delta", "payload": {}}) is None
 
 
+# --- turning one zone off (navien_smart_ha issue #16) ------------------------
+
+
+def _double_temp(power_ctrl=True):
+    """Two temperature-controlled zones, `rangeMin` 28 — so `off_value` is 27.5."""
+    functions = {
+        "powerCtrl": power_ctrl,
+        "heatControl": {"unit": "0.5C", "rangeMin": 28, "rangeMax": 50},
+    }
+    attributes = {"modelType": "wm", "functions": functions, "mcu": {"capacity": 2}}
+    nick = {"mainItem": "안방", "side": {"left": "좌", "right": "우"}}
+    return {
+        "serviceCode": 200, "deviceSeq": 13, "deviceId": "MAT-3", "modelCode": 520,
+        "Properties": {"nickName": nick, "registry": {"attributes": attributes}},
+    }
+
+
+def test_off_value_is_one_step_below_the_minimum():
+    """Not 0. The appliance's "off" is `rangeMin - step` on both axes."""
+    temp = mate.MateDevice.from_raw(_double_temp())
+    assert temp.heat_control.off_value == 27.5          # 28 - 0.5
+    level = mate.MateDevice.from_raw(_double_level_four_season())
+    assert level.heat_control.off_value == 0            # 1 - 1.0, why level was right
+    assert level.cool_control.off_value == 0
+
+
+def test_power_switch_exists_even_when_the_server_says_no_power_ctrl():
+    """`powerCtrl` must not gate `onoff` — it left EME-520 tiles with no power control.
+
+    The field is still parsed, because diagnostics should keep showing what the server
+    claims; it just no longer decides anything.
+    """
+    m = mate.MateDevice.from_raw(_double_temp(power_ctrl=False))
+    assert m.has_power_ctrl is False
+    assert "onoff" in m.homey_capabilities()
+
+
+def test_temperature_zone_off_sends_the_off_value_not_the_current_one():
+    """`enable: false` alone is ignored on the celsius axis; the value does the work."""
+    m = mate.MateDevice.from_raw(_double_temp())
+    m.apply_reported({"operationMode": 1, "heater": {
+        "left": {"enable": True, "temperature": {"set": 33.0}},
+        "right": {"enable": True, "temperature": {"set": 30.0}}}})
+
+    desired = m.desired_zone_off("left")
+
+    assert desired == {"heater": {
+        "left": {"enable": False, "temperature": {"set": 27.5}},
+        "right": {"enable": True, "temperature": {"set": 30.0}}}}
+    # No `operationMode`: stopping a zone is not powering the appliance down.
+    assert "operationMode" not in desired
+
+
+def test_setting_a_temperature_at_or_below_the_floor_turns_the_zone_off():
+    """The floor is how the picker expresses "off" — 27.5 must not be sent as a setpoint."""
+    m = mate.MateDevice.from_raw(_double_temp())
+    m.apply_reported({"operationMode": 1, "heater": {
+        "left": {"enable": True, "temperature": {"set": 33.0}},
+        "right": {"enable": True, "temperature": {"set": 30.0}}}})
+
+    assert m.desired_temperature("left", 27.5) == m.desired_zone_off("left")
+    # Anything above the floor is untouched, operating mode included.
+    on = m.desired_temperature("left", 31.0)
+    assert on["heater"]["left"] == {"enable": True, "temperature": {"set": 31.0}}
+    assert on["operationMode"] == 1
+
+
+def test_the_last_running_zone_is_refused_with_a_reason():
+    """The appliance ignores it, so explain instead of sending a no-op."""
+    m = mate.MateDevice.from_raw(_double_temp())
+    m.apply_reported({"operationMode": 1, "heater": {
+        "left": {"enable": False, "temperature": {"set": 27.5}},   # already off
+        "right": {"enable": True, "temperature": {"set": 30.0}}}})
+
+    assert m.zone_is_off("left") is True
+    try:
+        m.desired_zone_off("right")
+    except mate.MateZoneOffRefused:
+        pass
+    else:
+        raise AssertionError("stopping the only running zone should be refused")
+    # The zone that is already off can still be re-sent — that is not the last one.
+    assert m.desired_zone_off("left")["heater"]["left"]["temperature"]["set"] == 27.5
+
+
+def test_a_zone_of_unknown_state_counts_as_running():
+    """Unknown must not lock the user out: send it and let the appliance decide."""
+    m = mate.MateDevice.from_raw(_double_temp())
+    m.apply_reported({"operationMode": 1, "heater": {
+        "right": {"enable": True, "temperature": {"set": 30.0}}}})
+
+    assert m.zone_is_off("left") is None
+    assert m.desired_zone_off("right")["heater"]["right"]["temperature"]["set"] == 27.5
+
+
+def test_a_single_zone_mat_is_not_refused():
+    """Deliberately unlike upstream, which refuses this too.
+
+    A single-zone mat has no other zone, so the "something must stay on" rule would refuse
+    every zone-off it could ever make — removing the only way that mat has had to stop
+    heating. The measurement behind the rule comes from a dual-control mat, and the app's
+    own guard reads as dual-only, so extending it here would be inference.
+    """
+    m = mate.MateDevice.from_raw(_single_temp())     # rangeMin 20 -> off_value 19.5
+    m.apply_reported({"operationMode": 1, "heater": {
+        "single": {"enable": True, "temperature": {"set": 24.5}}}})
+
+    assert m.desired_zone_off("single") == {
+        "heater": {"single": {"enable": False, "temperature": {"set": 19.5}}}}
+
+
+def test_temperature_picker_can_reach_the_off_value():
+    """A floor of `rangeMin` could neither turn a zone off nor display one that is."""
+    m = mate.MateDevice.from_raw(_double_temp())
+    opts = m.homey_capability_options()
+    assert opts["target_temperature.left"]["min"] == 27.5
+    assert opts["target_temperature.left"]["max"] == 50
+
+
+def test_level_zone_off_is_unchanged():
+    """A fence, not a feature: the level axis was already sending `rangeMin - step`."""
+    d = mate.MateDevice.from_raw(_double_level_four_season())
+    d.apply_reported({"operationMode": 1, "season": 0, "heater": {
+        "left": {"enable": True, "level": {"set": 3}},
+        "right": {"enable": True, "level": {"set": 4}}}})
+
+    assert d.desired_level("left", 0)["heater"]["left"] == {
+        "enable": False, "level": {"set": 0}}
+    assert d.desired_level("left", 5)["heater"]["left"] == {
+        "enable": True, "level": {"set": 5}}
+
+
 def test_mate_control_raw_body():
     api = NavienApi(username="u", password="p")
     api.user_seq = "77"

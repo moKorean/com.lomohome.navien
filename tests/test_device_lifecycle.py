@@ -20,6 +20,7 @@ age of the newest report — must each produce the answer they alone can give.
 import asyncio
 
 import pytest
+from homey import device as conftest_device  # the fake installed by tests/conftest.py
 
 from navien_lib.airmonitor import device as airmonitor_device
 from navien_lib.airone import device as airone_device
@@ -1204,6 +1205,58 @@ def test_concurrent_start_mqtt_never_leaves_two_clients(make_homey, monkeypatch)
             ("connect_blocking:start", two), ("connect_blocking:done", two),
         ]
         await dev._teardown()
+
+    asyncio.run(scenario())
+
+
+def test_mate_paired_without_a_power_switch_gains_one(make_homey):
+    """A mat paired while `powerCtrl` gated `onoff` keeps a tile with no power control.
+
+    Capabilities are fixed at pairing (`mate/driver.py`), so dropping the gate is only half
+    the fix — without this the affected owner would have to delete and re-add the device.
+    The listener matters as much as the capability: added after the registration loop, the
+    switch would appear and then do nothing when pressed.
+    """
+
+    async def scenario():
+        api = FakeApi()
+        dev = mate_device.MateDevice_(
+            homey=make_homey(api=api), store=_MATE_STORE,
+            capabilities=["navien_operation_mode"], name="안방 매트")
+        await dev.on_init()
+
+        assert dev.added_capabilities == ["onoff"]
+        assert "onoff" in dev.get_capabilities()
+        assert "onoff" in dev.listeners
+        assert any("added the onoff capability" in line for line in dev.logs)
+        await stop(dev)
+
+    asyncio.run(scenario())
+
+
+def test_mate_power_migration_says_so_when_the_runtime_cannot_do_it(make_homey, monkeypatch):
+    """`add_capability` is not in the Python runtime's documented Device API.
+
+    If it turns out not to exist, the owner needs to hear that re-pairing is the way out —
+    a migration that fails silently reads exactly like one that worked.
+    """
+    # Model a runtime without it. Via monkeypatch so the method comes back afterwards:
+    # deleting it from the shared fake class outright would leak into every later test.
+    # What is left is `_Strict.__getattr__` raising AttributeError, which is exactly what
+    # the probe's `getattr` default absorbs.
+    monkeypatch.delattr(conftest_device.Device, "add_capability")
+
+    async def scenario():
+        api = FakeApi()
+        dev = mate_device.MateDevice_(
+            homey=make_homey(api=api), store=_MATE_STORE,
+            capabilities=["navien_operation_mode"], name="안방 매트")
+        await dev.on_init()
+
+        assert "onoff" not in dev.get_capabilities()
+        assert any("re-pair the mat" in line for line in dev.logs)
+        assert not dev._poll_task.done()          # and it keeps running regardless
+        await stop(dev)
 
     asyncio.run(scenario())
 
