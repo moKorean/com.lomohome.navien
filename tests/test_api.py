@@ -12,6 +12,7 @@ does not add one), so each test drives its own loop with `asyncio.run`.
 
 import asyncio
 import json
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -303,6 +304,56 @@ def test_pairing_budget_covers_the_worst_case_authed_call(no_sleep):
 # --- login ownership: one session per account --------------------------------
 
 
+class SessionTransport:
+    """Answers by which token the request presented, the way the single session does.
+
+    The scripted `Transport` answers by call index, and `_run` hands each request to a
+    different executor thread, so which entry a request gets depends on the order those
+    threads happen to arrive — not on the order the requests were issued. That made the
+    concurrent-login test ordering-dependent in two directions: it failed on CI with two
+    logins, and about once in a thousand runs locally by handing a caller's own retry the
+    second scripted 404 and exhausting a re-login budget that was never meant to cover it.
+
+    Both symptoms come from the same thing: a 404 answering a request that carried a token
+    minted moments earlier. The cloud does not do that, and when it genuinely does, a
+    second re-login is the correct response — so the fixture, not the dedup, was wrong.
+    Here the only invalidated token is the one `_api(logged_in=True)` starts with, and
+    every token a re-login mints is accepted, which makes the answer independent of arrival
+    order. Verified over 6000 runs.
+
+    `gate` additionally holds the first N requests inside the transport until all N have
+    arrived, so a test about simultaneous callers gets simultaneous callers and its request
+    count is pinned too.
+    """
+
+    STALE_TOKEN = "TOKEN-1"
+
+    def __init__(self, *, gate=0):
+        self.calls = []
+        self._gate = threading.Barrier(gate, timeout=10) if gate else None
+        self._lock = threading.Lock()
+        self._arrived = 0
+
+    def __call__(self, method, url, headers, body, allow_redirects):
+        if self._gate is not None:
+            with self._lock:
+                self._arrived += 1
+                hold = self._arrived <= self._gate.parties
+            # A timeout here breaks the barrier and surfaces as an error rather than
+            # hanging the suite, so a test that stops issuing the requests it promised
+            # fails loudly.
+            if hold:
+                self._gate.wait()
+        self.calls.append((method, url, body))
+        if headers.get("Authorization") == self.STALE_TOKEN:
+            return 200, _envelope(code=CODE_NOT_AUTHORIZED, message="session invalidated")
+        return 200, _envelope(data={"devices": []})
+
+    @property
+    def count(self) -> int:
+        return len(self.calls)
+
+
 def test_concurrent_404s_cause_exactly_one_login():
     """Two devices bounced in the same instant must re-login once between them.
 
@@ -310,13 +361,12 @@ def test_concurrent_404s_cause_exactly_one_login():
     would knock out the session the first one just established — the retry causing the
     condition it exists to repair. The generation captured before each request is what
     lets the loser of the race see that the work is already done.
+
+    Both requests are gated into flight together because that is the premise: only a
+    caller that had already snapshotted the pre-login generation can be the loser this
+    dedup is for. Leaving it to the scheduler tested a different thing on CI.
     """
-    bounced = _envelope(code=CODE_NOT_AUTHORIZED, message="session invalidated")
-    transport = Transport(
-        (200, bounced),
-        (200, bounced),
-        (200, _envelope(data={"devices": []})),
-    )
+    transport = SessionTransport(gate=2)
     api = _api(transport, logged_in=True)
     logins = _count_logins(api)
 
@@ -325,6 +375,27 @@ def test_concurrent_404s_cause_exactly_one_login():
 
     assert asyncio.run(both()) == [[], []]
     assert transport.count == 4                       # two 404s, then two retries
+    assert len(logins) == 1
+
+
+def test_a_request_issued_after_the_relogin_does_not_redo_it():
+    """A caller that starts late rides the new session instead of replacing it.
+
+    Its generation snapshot is taken *after* the login, so the generation check cannot tell
+    it that one just happened — and it does not have to. It presents the token that login
+    minted, the cloud accepts it, and there is no 404 to react to. This is the other half
+    of the guarantee above: the dedup covers callers that raced, and callers that did not
+    race need no covering.
+    """
+    transport = SessionTransport()
+    api = _api(transport, logged_in=True)
+    logins = _count_logins(api)
+
+    async def one_then_the_other():
+        return [await api.list_devices(1), await api.list_devices(2)]
+
+    assert asyncio.run(one_then_the_other()) == [[], []]
+    assert transport.count == 3            # bounced, retried on the new token, then clean
     assert len(logins) == 1
 
 
