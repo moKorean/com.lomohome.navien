@@ -1,4 +1,4 @@
-# Navien Smart Community (Homey)
+# Navien Smart (Homey)
 
 A Homey app that controls Kyungdong **Navien AirOne** (ventilation / dehumidify /
 air-purify) and **Navien sleep mats**. It talks to the same Navien Smart cloud the
@@ -58,7 +58,7 @@ The Homey port itself is © 2026 Geunwon Mo.
 | AirOne — air quality (PM, CO₂, TVOC, radon, temp/humidity, grade, filter, error) | Supported |
 | AirMonitor — separate device, air-quality sensors | Supported |
 | Sleep mat — power, per-zone temperature/level, heating/cooling, state | Supported (hardware-verified in the original project) |
-| Boiler · wall pad | Out of scope |
+| Boiler · wall pad | Out of scope — use the official Navien Smart app by navien kd |
 
 > **Compatibility.** Only newer AirOne units (`modelCode ≥ 1000`) are supported. Older
 > units use a completely different command envelope and topic scheme and cannot be reached

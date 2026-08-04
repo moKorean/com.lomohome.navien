@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "com.lomohome.navien",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "compatibility": ">=13.0.0",
   "sdk": 3,
   "runtime": "python",
@@ -15,12 +15,12 @@
   ],
   "brandColor": "#E2001A",
   "name": {
-    "en": "Navien Smart Community",
-    "ko": "나비엔 스마트 커뮤니티"
+    "en": "Navien Smart",
+    "ko": "나비엔 스마트"
   },
   "description": {
-    "en": "Easily automate Navien AirOne ventilation, dehumidify and air purify",
-    "ko": "나비엔 에어원 환기·제습·청정을 쉽게 자동화"
+    "en": "Breathe easy, sleep well",
+    "ko": "숨은 편하게, 잠은 깊게"
   },
   "category": [
     "climate"

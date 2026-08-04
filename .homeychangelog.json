@@ -54,5 +54,9 @@
   "0.6.0": {
     "en": "A reliability release. A network hiccup at startup could stop the AirMonitor and sleep mats updating for good until the app was restarted — fixed. When an appliance goes offline the tile now says so instead of showing yesterday's numbers, and it recovers about a minute after power returns rather than up to five. Realtime updates come back in seconds after a dropped connection instead of waiting for the next refresh. Checking the connection or saving your account in the app settings no longer knocks the running devices off the account's single session, a network error is no longer reported as a wrong password, and logging out now actually stops the devices. Auto-dry progress no longer disappears after you change the mode or fan speed.",
     "ko": "안정성 개선 릴리스입니다. 시작할 때 네트워크가 잠깐 끊기면 에어모니터와 숙면매트가 앱을 재시작할 때까지 영영 갱신되지 않던 문제를 고쳤습니다. 기기가 오프라인이면 지난 값을 그대로 보여주지 않고 오프라인이라고 표시하며, 전원이 돌아오면 최대 5분이 아니라 1분 안팎이면 복구됩니다. 연결이 끊겨도 실시간 갱신이 다음 주기를 기다리지 않고 수 초 안에 되살아납니다. 앱 설정에서 연결을 확인하거나 계정을 저장할 때 실행 중인 기기가 계정 세션에서 밀려나던 문제, 네트워크 오류를 비밀번호가 틀렸다고 안내하던 문제를 고쳤고, 로그아웃하면 기기가 실제로 통신을 멈춥니다. 운전 모드나 풍량을 바꾸면 자동건조 진행률이 사라지던 것도 고쳤습니다."
+  },
+  "0.6.1": {
+    "en": "The app is now simply called Navien Smart. It is still an unofficial community app — the store shows that with its own badge, so the word no longer has to sit in the name. The store description also notes that boilers and wall pads are not covered, so you know where to look for those. Your devices, settings and automations are unaffected.",
+    "ko": "앱 이름을 '나비엔 스마트'로 정리했습니다. 여전히 비공식 커뮤니티 앱이며, 스토어가 배지로 이를 표시해 주기 때문에 이름에까지 넣지 않았습니다. 보일러와 월패드는 지원 범위가 아니라는 안내도 소개글에 넣어, 그 기기는 어디서 찾아야 하는지 알 수 있게 했습니다. 기기·설정·자동화는 그대로입니다."
   }
 }
