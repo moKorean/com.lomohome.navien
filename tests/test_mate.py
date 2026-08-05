@@ -222,6 +222,56 @@ def test_level_zone_off_is_unchanged():
         "enable": True, "level": {"set": 5}}
 
 
+def test_a_disabled_zone_is_off_even_while_reporting_a_warm_temperature():
+    """`enable` wins over the value — navien_smart_ha v0.17.2.
+
+    The phone app splits on/off on `enable` alone and throws a disabled zone's reported
+    temperature away. That branch only exists because this state is reachable.
+    """
+    m = mate.MateDevice.from_raw(_double_temp())
+    m.apply_reported({"operationMode": 1, "heater": {
+        "left": {"enable": False, "temperature": {"set": 33.0}},   # off, still reports 33
+        "right": {"enable": True, "temperature": {"set": 30.0}}}})
+
+    assert m.zone_is_off("left") is True
+    # The tile agrees with the command logic: the picker's bottom stop means off.
+    assert m.zone_display_value("left") == 27.5
+    assert m.zone_display_value("right") == 30.0
+    # And the raw value is still what gets re-sent, so 33 survives a right-hand change.
+    assert m.desired_temperature("right", 31.0)["heater"]["left"] == {
+        "enable": False, "temperature": {"set": 33.0}}
+    # Left is off, so right is the last running zone.
+    try:
+        m.desired_zone_off("right")
+    except mate.MateZoneOffRefused:
+        pass
+    else:
+        raise AssertionError("the last running zone should be refused")
+
+
+def test_the_value_still_decides_when_enable_is_absent():
+    """Older reports carry no `enable`. Falling back keeps them working."""
+    m = mate.MateDevice.from_raw(_double_temp())
+    m.apply_reported({"operationMode": 1, "heater": {
+        "left": {"temperature": {"set": 27.5}},
+        "right": {"temperature": {"set": 30.0}}}})
+
+    assert m.zone_is_off("left") is True and m.zone_is_off("right") is False
+    assert m.zone_display_value("left") == 27.5
+
+
+def test_level_display_is_unchanged_by_the_enable_first_rule():
+    """`level 0` and `enable false` move together, so both readings agree."""
+    d = mate.MateDevice.from_raw(_double_level_four_season())
+    d.apply_reported({"operationMode": 1, "season": 0, "heater": {
+        "left": {"enable": False, "level": {"set": 0}},
+        "right": {"enable": True, "level": {"set": 4}}}})
+
+    assert d.zone_is_off("left") is True and d.zone_is_off("right") is False
+    assert d.zone_display_value("left") == 0
+    assert d.zone_display_value("right") == 4
+
+
 def test_mate_control_raw_body():
     api = NavienApi(username="u", password="p")
     api.user_seq = "77"

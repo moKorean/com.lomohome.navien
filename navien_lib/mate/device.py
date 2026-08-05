@@ -659,11 +659,14 @@ class MateDevice_(device.Device):
         for cap in caps:
             base, zone = _split(cap)
             if base == "target_temperature":
-                await self._set(cap, self._num(m.zone_setting(zone)))
+                # `zone_display_value`, not `zone_setting`: a zone the appliance reports as
+                # disabled is drawn at the picker's bottom stop, which is what this app
+                # (and the phone app) mean by off. See navien_smart_ha v0.17.2.
+                await self._set(cap, self._num(m.zone_display_value(zone)))
             elif base == "measure_temperature":
                 await self._set(cap, self._num(m.zone_current(zone)))
             elif base == "navien_heat_level":
-                await self._set(cap, self._num(m.zone_setting(zone)))
+                await self._set(cap, self._num(m.zone_display_value(zone)))
         await self._sync_ranges()
 
     async def _sync_ranges(self) -> None:

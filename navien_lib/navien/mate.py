@@ -300,9 +300,22 @@ class MateDevice:
     def zone_is_off(self, zone) -> bool | None:
         """Is this zone off? **`None` when unknown** — never guessed as off.
 
-        Read from the value rather than from `enable`, because the value is what the
-        appliance acts on: a zone parked at `off_value` is off whatever `enable` says.
+        **`enable` first, because that is what the phone app reads.**
+        `MateInfoData.setHeatType()` splits on/off on `enable` alone, and
+        `setMatLeftTemp()` goes further — a disabled zone's reported temperature is thrown
+        away and drawn as 0. That branch only exists because **a zone that is off can
+        still report a normal temperature**, so the value cannot be the test.
+
+        We read the value only when `enable` is absent. On the level axis that changes
+        nothing: `level 0` and `enable false` move together (navien_smart_ha, measured).
+
+        Ported from navien_smart_ha v0.17.2, which found the two halves disagreeing —
+        one place asking `enable`, another asking the value. `zone_display_value` keeps
+        the tile on this same answer.
         """
+        enabled = self.zone_enabled(zone)
+        if enabled is not None:
+            return not enabled
         control = self.active_control
         off = control.off_value if control else None
         setting = self.zone_setting(zone)
@@ -310,20 +323,44 @@ class MateDevice:
             return None
         return float(setting) <= off
 
+    def zone_display_value(self, zone):
+        """What the tile should show for this zone: **`off_value` once it is off.**
+
+        The picker's bottom stop *is* "off" (see `HeatControl.off_value`), so a zone the
+        appliance reports as disabled has to be drawn there — otherwise the tile says 33°
+        for a zone the phone app is showing as 꺼짐, and dragging the slider is the only
+        way to find out which one is right. Same rule the app applies in
+        `setMatLeftTemp()`, and the same answer `desired_zone_off`'s guard works from.
+
+        The raw value is left alone in `build_heater_desired`: re-sending a zone means
+        preserving what the appliance actually holds, not what the screen draws.
+        """
+        setting = self.zone_setting(zone)
+        if self.zone_is_off(zone) is not True:
+            return setting
+        control = self.active_control
+        off = control.off_value if control else None
+        if off is None:
+            return setting
+        return off if setting is None else min(float(setting), off)
+
     # --- control payloads --------------------------------------------------
 
     def desired_power(self, on: bool) -> dict:
         """Power the appliance on or off. Zone values are left alone.
 
-        **Backlog (unverified).** Upstream also raises any zone sitting at `off_value` up to
-        `rangeMin` when powering on, having observed that otherwise the appliance powers up
-        with every zone still off (navien_smart_ha issue #16, reporter 7). We do not, for
-        two reasons: this app never *writes* `off_value` except when explicitly asked to
-        stop a zone, and nobody here owns a mat to measure it on. The phone app can still
-        leave a mat in that state, so the case is real — it just is not confirmed, and
-        raising a zone the user did not ask about is the kind of guess worth measuring
-        first. Settle it by parking one zone at `off_value`, powering off, powering on, and
-        watching whether that zone heats.
+        **Same as the phone app and as upstream** — both send `operationMode` by itself.
+        Powering on does not revive a zone the user parked at `off_value`; that zone was
+        turned off on purpose, and cutting it back on is not what the switch was pressed
+        for.
+
+        Upstream *does* raise off zones to `rangeMin`, but in `build_zone_on` — the
+        turn-this-zone-on command behind its per-zone climate entity, where the user asked
+        for heat without naming a temperature and re-sending `27.5` would mean "stay off"
+        (navien_smart_ha issue #16, reporter 7; refined in v0.17.2 so the zone is always
+        carried in the payload). **This app has no such command.** Every zone control here
+        — the picker, `mate_set_temperature`, `mate_set_level` — carries an explicit value,
+        so the zone is always in `changes` and can never fall out of the payload.
         """
         return {"operationMode": 1 if on else 0}
 
