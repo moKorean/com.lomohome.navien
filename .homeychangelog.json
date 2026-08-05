@@ -62,5 +62,9 @@
   "0.6.2": {
     "en": "Sleep mat fixes. Some mats never got a power switch at all — now every mat has one, including mats you already added. On a temperature mat, turning one side off used to do nothing at all; it now actually turns off, and a side you switched off from the phone app is shown properly instead of being stuck at the lowest temperature. Trying to stop the only side still running now tells you the mat blocks that, and to use the power switch instead. Nothing changes for level-based (carbon) mats or for the AirOne.",
     "ko": "숙면매트 수정입니다. 전원 스위치가 아예 생기지 않던 매트가 있었는데, 이제 모든 매트에 생깁니다 — 이미 추가해 두신 매트도 포함입니다. 온도형 매트에서 한쪽을 끄면 아무 일도 일어나지 않았지만 이제 실제로 꺼지고, 휴대폰 앱에서 끄신 쪽도 최저 온도에 걸려 있지 않고 제대로 표시됩니다. 마지막으로 운전 중인 한쪽을 끄려고 하면, 기기가 막는 동작이라는 것과 전원 스위치를 쓰시면 된다는 것을 안내합니다. 단계형(카본) 매트와 에어원은 달라지는 것이 없습니다."
+  },
+  "0.6.3": {
+    "en": "A temperature mat could show a side as heating when it was actually off. The mat reports whether a side is on separately from its temperature, and a side that is off can still report a normal temperature — so the tile showed 33° for a side the phone app was showing as off. Both the tile and the \"you cannot stop the last running side\" guidance now go by whether the mat says the side is on, which is what the phone app does. Nothing changes for level-based (carbon) mats or for the AirOne.",
+    "ko": "온도형 매트에서 꺼져 있는 쪽이 켜져 있는 것처럼 보일 수 있었습니다. 매트는 한쪽이 켜졌는지를 온도와 따로 알려주는데, 꺼진 쪽도 평범한 온도를 계속 보고할 수 있습니다. 그래서 휴대폰 앱에서는 «꺼짐»인 쪽이 여기서는 33도로 보이곤 했습니다. 이제 타일 표시도, 마지막 한쪽은 끌 수 없다는 안내도 매트가 알려주는 «켜짐» 표시를 기준으로 판단합니다 — 휴대폰 앱과 같은 방식입니다. 단계형(카본) 매트와 에어원은 달라지는 것이 없습니다."
   }
 }
