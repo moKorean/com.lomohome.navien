@@ -100,7 +100,10 @@ shadow 는 변화가 있을 때만 오므로, 구독 직후 초기 상태를 요
 - **목표 습도:** 제습(9)·환기제습(10) 만. `roomController.additionalData = {"type":1,"value":습도}`,
   범위는 서버 `additionalData` min/max, step 5. **모드 전환 시 습도를 함께 실어야** 기기가 40% 로 초기화 안 됨.
 - **오류:** `roomController.error.code` 또는 `odu.error.code`.
-- **필터 사용률:** `odu.filter[i].usage.percent`.
+- **필터 잔량:** `odu.filter[i].usage.percent`. **필드 이름과 뜻이 반대다** — `usage` 라고
+  돼 있지만 값은 남은 수명이다(87 = 87% 남음, 13% 사용). 실기기에서 나비엔 앱과 대조해 확인.
+  capability id 는 `navien_filter_usage` 로 두었다 — 바꾸면 이미 페어링된 기기에서 센서와
+  Insights 이력이 사라진다.
 - **공기질(REST):** pm1Dot0/pm2Dot5/pm10(㎍/㎥), co2(ppm), tvoc, radon(Bq/㎥), temperature(°C),
   humidity(%), total. 등급 0=알수없음/1=좋음/2=보통/3=나쁨/4=매우나쁨.
 

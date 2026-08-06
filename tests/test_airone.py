@@ -35,6 +35,9 @@ def test_from_raw_parses_newer_gen():
     assert u.physical_device_id == "RC-77"
     assert u.is_on and u.mode == 9 and u.air_volume == 2
     assert u.target_humidity == 55
+    # `usage.percent` is filter life *remaining*, not consumed — the wire name is
+    # backwards. 42 means 42% of the filter is left. Only the label was ever wrong,
+    # so the value passes through untouched.
     assert u.filters == [42]
 
 

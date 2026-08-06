@@ -1016,8 +1016,8 @@
     "navien_filter_usage": {
       "type": "number",
       "title": {
-        "en": "Filter usage",
-        "ko": "필터 사용률"
+        "en": "Filter remaining",
+        "ko": "필터 잔량"
       },
       "getable": true,
       "setable": false,

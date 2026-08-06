@@ -1104,6 +1104,9 @@ class AironeDevice_(device.Device):
         total = u.air_sensors.get("total") or {}
         await self._set("navien_air_grade", self._num(total.get("value")))
         filters = u.filters
+        # Life **remaining**, despite the id and the `usage.percent` wire field it comes
+        # from — see `AironeUnit.filters`. The id is kept so paired devices don't lose the
+        # sensor and its history; the label is the thing that was wrong.
         await self._set("navien_filter_usage", filters[0] if filters else None)
         await self._set("navien_error_code", self._num(u.error_code))
         await self._set("alarm_generic", u.has_error)

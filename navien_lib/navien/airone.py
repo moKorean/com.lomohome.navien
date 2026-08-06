@@ -483,7 +483,15 @@ class AironeDevice:
 
     @property
     def filters(self) -> list:
-        """`percent` used for each filter the outdoor unit reports."""
+        """Filter life **remaining**, as a percent, one per filter the outdoor unit reports.
+
+        **The wire field lies.** It is `odu.filter[i].usage.percent`, and both this port
+        and navien_smart_ha read that name as "how much of the filter is used up". It is
+        the opposite: measured against the Navien app on a real unit, a reading of 87 is
+        87% of the filter's life *left* (13% used). The capability keeps its
+        `navien_filter_usage` id — renaming it would drop the sensor from every paired
+        device and take the Insights history with it — but every label says 잔량.
+        """
         out = []
         for f in self._odu.get("filter") or []:
             usage = f.get("usage") or {}
